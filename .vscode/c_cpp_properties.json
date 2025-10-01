@@ -1,0 +1,52 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "/Users/liambruhin/hprc/rocket-base-2026/include",
+                "/Users/liambruhin/hprc/rocket-base-2026/src",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit BusIO",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit ICM20X",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit LPS2X",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit Unified Sensor",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/BasicLinearAlgebra",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/STM32duino ASM330LHH/src",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/SdFat/src",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/SparkFun u-blox GNSS v3/src",
+                "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Unity/src",
+                ""
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "/Users/liambruhin/hprc/rocket-base-2026/include",
+                    "/Users/liambruhin/hprc/rocket-base-2026/src",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit BusIO",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit ICM20X",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit LPS2X",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Adafruit Unified Sensor",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/BasicLinearAlgebra",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/STM32duino ASM330LHH/src",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/SdFat/src",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/SparkFun u-blox GNSS v3/src",
+                    "/Users/liambruhin/hprc/rocket-base-2026/.pio/libdeps/sd_read/Unity/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60118",
+                ""
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "compilerArgs": [
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}

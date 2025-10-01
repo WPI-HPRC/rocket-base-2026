@@ -1,3 +1,4 @@
+#if false
 // TODO: pull out into a header
 enum State {
     PRELAUNCH,
@@ -110,3 +111,4 @@ void loop() {
         currentState = newState;
     }
 }
+#endif
