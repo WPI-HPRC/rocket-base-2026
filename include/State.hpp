@@ -13,7 +13,7 @@ struct Context {
     // ...
 };
 
-struct stateData {
+struct StateData {
     long long currentTime;
     long long deltaTime;
     long long loopCount;
@@ -21,5 +21,5 @@ struct stateData {
     long long lastLoopTime;
 };
 
-typedef void (*StateInitFunc)(stateData *data);
-typedef State (*StateLoopFunc)(stateData *data, Context *ctx);
+typedef void (*StateInitFunc)(StateData *data);
+typedef State (*StateLoopFunc)(StateData *data, Context *ctx);
