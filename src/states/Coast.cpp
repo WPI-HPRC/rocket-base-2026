@@ -4,7 +4,7 @@ void coastInit (StateData* data) {
     // initialize altitude
 }
 
-State coastLoop (StateData* data, Context* ctx) {
+StateID coastLoop (StateData* data, Context* ctx) {
     /*
     - Poll acceleration data from ctx
     - Check acceleration to detect drouge deployment

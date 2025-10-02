@@ -1,8 +1,8 @@
 #include <State.hpp>
 
-void boostInit (StateData* data, Context* ctx) {}
+void boostInit (StateData* data) {}
 
-State boostLoop (StateData* data, Context* ctx) {
+StateID boostLoop (StateData* data, Context* ctx) {
     /*
     - Poll acceleration data from ctx
     - Check acceleration to detect coast stage

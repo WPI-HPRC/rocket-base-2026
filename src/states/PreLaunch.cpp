@@ -2,7 +2,7 @@
 
 void prelaunchInit (StateData* data) {}
 
-State prelaunchLoop (StateData* data, Context* ctx) {
+StateID prelaunchLoop (StateData* data, Context* ctx) {
     /*
     - Poll acceleration data from ctx
     - Check acceleration to detect launch

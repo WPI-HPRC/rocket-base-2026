@@ -1,5 +1,7 @@
 #include <State.hpp>
 
-State drogueDescentLoop (StateData* data, Context* ctx) {
+void drogueDescentInit(StateData *data) {}
+
+StateID drogueDescentLoop (StateData* data, Context* ctx) {
     
 }

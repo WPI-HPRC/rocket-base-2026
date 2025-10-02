@@ -1,4 +1,8 @@
-enum State {
+#pragma once
+
+#include "Context.hpp"
+
+enum StateID {
     PRELAUNCH,
     BOOST,
     COAST,
@@ -7,10 +11,6 @@ enum State {
     RECOVERY,
     ABORT,
     NUM_STATES
-};
-
-struct Context {
-    // ...
 };
 
 struct StateData {
@@ -22,4 +22,4 @@ struct StateData {
 };
 
 typedef void (*StateInitFunc)(StateData *data);
-typedef State (*StateLoopFunc)(StateData *data, Context *ctx);
+typedef StateID (*StateLoopFunc)(StateData *data, Context *ctx);
