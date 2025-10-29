@@ -23,7 +23,7 @@ class SensorManager {
         }
     }
 
-    bool sensorInit() {
+    bool sensorInit() { // pass type arr?
         bool success = true;
         for (size_t i = 0; i < N; i++) {
             sensors[i]->init();

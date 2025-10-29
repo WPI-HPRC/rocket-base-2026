@@ -1,12 +1,10 @@
 #pragma once
 
 #include "Print.h"
-#include "../../TimedPointer/TimedPointer.h"
 #include <cstdlib>
 
 class Sensor {
   protected:
-    TimedPointer<void> data;
     uint32_t pollingPeriod;
     bool initStatus = false;
 
