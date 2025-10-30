@@ -1,6 +1,9 @@
 #include <State.hpp>
+#include <stdio.h>
 
-void prelaunchInit (StateData* data) {}
+void prelaunchInit (StateData* data) {
+    printf("Prelaunch started\n");
+}
 
 StateID prelaunchLoop (StateData* data, Context* ctx) {
     /*
@@ -9,6 +12,14 @@ StateID prelaunchLoop (StateData* data, Context* ctx) {
     - Check if need to abort
     - Update sensor data and ctx for next iteration?
     */
-    
-    return BOOST;
+
+    // Test Stuff
+    if(ctx->contextData == 0) {
+        return BOOST;
+    } else {
+        ctx->contextData -= 1;
+    }
+
+    printf("Count Down: %d\n", ctx->contextData);
+    return PRELAUNCH;
 }

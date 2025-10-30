@@ -1,6 +1,10 @@
 #include <State.hpp>
+#include <stdio.h>
 
-void boostInit (StateData* data) {}
+
+void boostInit (StateData* data) {
+    printf("Boost Started\n");
+}
 
 StateID boostLoop (StateData* data, Context* ctx) {
     /*

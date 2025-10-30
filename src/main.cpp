@@ -1,4 +1,5 @@
-#include <Arduino.h>
+//#include <Arduino.h>
+#include "stdio.h"
 #include "Context.hpp"
 #include "State.hpp"
 #include "States.hpp"
@@ -15,7 +16,7 @@
 
 
 Context ctx = {
-    .contextData = 7
+    .contextData = 10
 };
 
 
@@ -26,8 +27,9 @@ StateInitFunc initFuncs[NUM_STATES] = {};
 StateLoopFunc loopFuncs[NUM_STATES] = {};
 
 void setup() {
+    printf("Go!\n");
     currentState = PRELAUNCH;
-    data = {};
+    data = (StateData){};
 
     initFuncs[PRELAUNCH] = &prelaunchInit;
     initFuncs[BOOST] = &boostInit;

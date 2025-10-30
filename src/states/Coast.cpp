@@ -1,7 +1,9 @@
 #include <State.hpp>
+#include <stdio.h>
 
 void coastInit (StateData* data) {
     // initialize altitude
+    printf("Coast Started\n");
 }
 
 StateID coastLoop (StateData* data, Context* ctx) {
