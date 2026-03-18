@@ -1,0 +1,3 @@
+[submodule "src/boilerplate"]
+	path = src/boilerplate
+	url = https://github.com/WPI-HPRC/boilerplate.git
