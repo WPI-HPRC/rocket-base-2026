@@ -24,7 +24,7 @@ StateID coastLoop (StateData* data, Context* ctx) {
     //    }
     //    prevAltitude = currentAltitiude;
     //}
-    const auto acc_vec = ctx->estimator.get_vel_prev_ned();
+    const auto acc_vec = ctx->estimator.get_vel_ned();
     if(acc_vec(2, 0) < 0.2 && acc_vec(2, 0) > -0.2 && airBrakesDone) {
         // check acceleration down in NED frame is between 0.2 and -0.2
         // and airbreaks done

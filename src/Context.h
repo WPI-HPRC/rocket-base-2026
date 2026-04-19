@@ -7,7 +7,7 @@
 #include "boilerplate/Sensors/Impl/LIV3F.h"
 #include "boilerplate/Sensors/Impl/LPS22.h"
 #include "boilerplate/Sensors/Impl/LSM6.h"
-#include "boilerplate/qmekf-lib/qmekf.h"
+#include "boilerplate/qmekf-lib/include/split_mekf.h"
 
 struct ASM330Data;
 struct LPS22Data;
@@ -28,5 +28,5 @@ struct Context {
     LIS2MDL mag;
     LIV3F gps;
     
-    StateEstimator estimator;
+    SplitStateEstimator estimator;
 };

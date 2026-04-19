@@ -9,21 +9,17 @@ enum SensorType {
     LIV3F_TAG,
     LPS22_TAG,
     LSM6_TAG,
-    EKF_STATE_TAG,
-    EKF_P_TAG,
+    EKF_ATT_STATE_TAG,
+    EKF_PV_STATE_TAG,
+    EKF_ATT_P_TAG,
+    EKF_PV_P_TAG,
 };
 
-struct ekfState {
+struct ekfAttState {
     float w;
     float i;
     float j;
     float k;
-    float velX;
-    float velY;
-    float velZ;
-    float posX;
-    float posY;
-    float posZ;
     float gyroBX;
     float gyroBY;
     float gyroBZ;
@@ -33,12 +29,37 @@ struct ekfState {
     float magBX;
     float magBY;
     float magBZ;
-    float baroB;
 };
 
-struct ekfP {
+struct ekfPVState {
+    float velX;
+    float velY;
+    float velZ;
+    float posX;
+    float posY;
+    float posZ;
+    float accelBX;
+    float accelBY;
+    float accelBZ;
+};
+
+struct PVekfP {
     float P0;
     float P1;
+    float P2;
+    float P3;
+    float P4;
+    float P5;
+    float P6;
+    float P7;
+    float P8;
+    float P9;
+};
+
+struct AttekfP {
+    float P0;
+    float P1;
+    float P2;
     float P3;
     float P4;
     float P5;
@@ -48,23 +69,17 @@ struct ekfP {
     float P9;
     float P10;
     float P11;
-    float P12;
-    float P13;
-    float P14;
-    float P15;
-    float P16;
-    float P17;
-    float P18;
 };
-
 union LogSensorData {
     ASM330Data asm330;
     LIS2MDLData lis2m;
     LIV3FData liv3f;
     LPS22Data lps22;
     LSM6Data lsm6;
-    ekfState ekf_state;
-    ekfP ekf_p;
+    ekfAttState ekfAtt_state;
+    ekfPVState ekfPV_state;
+    AttekfP Attekf_p;
+    PVekfP PVekf_p;
 };
 
 #pragma pack(push, 1)

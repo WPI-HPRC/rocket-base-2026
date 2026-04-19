@@ -8,8 +8,10 @@ size_t dataLengths[] = {
     sizeof(LIV3FData),
     sizeof(LPS22Data),
     sizeof(LSM6Data),
-    sizeof(ekfState),
-    sizeof(ekfP),
+    sizeof(ekfAttState),
+    sizeof(ekfPVState),
+    sizeof(AttekfP),
+    sizeof(PVekfP),
 };
 
 bool initializeLogging(Context *ctx) {
@@ -23,9 +25,9 @@ bool initializeLogging(Context *ctx) {
         char fixedRateLogFilename[100];
         while (fileIdx < 100)
         {
-            sprintf(filename, "flightData%d.csv", fileIdx);
-            sprintf(errorFilename, "errorLog%d.txt", fileIdx);
-            sprintf(fixedRateLogFilename, "fixedRateLog%d.csv", fileIdx);
+            sprintf(filename, "flightData%d.bin", fileIdx);
+            sprintf(errorFilename, "stateTransition%d.txt", fileIdx);
+            sprintf(fixedRateLogFilename, "fixedRateLog%d.bin", fileIdx);
             fileIdx++;
 
             Serial.printf("Trying files `%s/%s`\n", filename, errorFilename);
@@ -61,58 +63,78 @@ void loggingLoop(Context *ctx) {
 
     if(millis() - lastTimeLoggedFixedRate >= 50) {
         lastTimeLoggedFixedRate = millis();
-        BLA::Matrix<20, 1> ekfState = ctx->estimator.getState();
+        BLA::Matrix<13, 1> attState = ctx->estimator.getAttState();
 
-        LogSensorData ekfStateData = {
-            .ekf_state = {
-                .w = ekfState(0, 0),
-                .i = ekfState(1, 0),
-                .j = ekfState(2, 0),
-                .k = ekfState(3, 0),
-                .velX = ekfState(4, 0),
-                .velY = ekfState(5, 0),
-                .velZ = ekfState(6, 0),
-                .posX = ekfState(7, 0),
-                .posY = ekfState(8, 0),
-                .posZ = ekfState(9, 0),
-                .gyroBX = ekfState(10, 0),
-                .gyroBY = ekfState(11, 0),
-                .gyroBZ = ekfState(12, 0),
-                .accelBX = ekfState(13, 0),
-                .accelBY = ekfState(14, 0),
-                .accelBZ = ekfState(15, 0),
-                .magBX = ekfState(16, 0),
-                .magBY = ekfState(17, 0),
-                .magBZ = ekfState(18, 0),
-                .baroB = ekfState(19, 0),
+        LogSensorData ekfAttStateData = {
+            .ekfAtt_state = {
+                .w = attState(0, 0),
+                .i = attState(1, 0),
+                .j = attState(2, 0),
+                .k = attState(3, 0),
+                .gyroBX = attState(4, 0),
+                .gyroBY = attState(5, 0),
+                .gyroBZ = attState(6, 0),
+                .accelBX = attState(7, 0),
+                .accelBY = attState(8, 0),
+                .accelBZ = attState(9, 0),
+                .magBX = attState(10, 0),
+                .magBY = attState(11, 0),
+                .magBZ = attState(12, 0),
             }
         };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfStateData, EKF_STATE_TAG);
+        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfAttStateData, EKF_ATT_STATE_TAG);
 
-        BLA::Matrix<19, 1> ekfP = ctx->estimator.getPDiag();
-        LogSensorData ekfPData = {
-            .ekf_p = {
-                .P0 = ekfP(0, 0),
-                .P1 = ekfP(1, 0),
-                .P3 = ekfP(2, 0),
-                .P4 = ekfP(3, 0),
-                .P5 = ekfP(4, 0),
-                .P6 = ekfP(5, 0),
-                .P7 = ekfP(6, 0),
-                .P8 = ekfP(7, 0),
-                .P9 = ekfP(8, 0),
-                .P10 = ekfP(9, 0),
-                .P11 = ekfP(10, 0),
-                .P12 = ekfP(11, 0),
-                .P13 = ekfP(12, 0),
-                .P14 = ekfP(13, 0),
-                .P15 = ekfP(14, 0),
-                .P16 = ekfP(15, 0),
-                .P17 = ekfP(16, 0),
-                .P18 = ekfP(17, 0),
+        BLA::Matrix<10, 1> PVState = ctx->estimator.getPVState();
+        LogSensorData ekfPVStateData = {
+            .ekfPV_state = {
+                .velX = PVState(0, 0),
+                .velY = PVState(1, 0),
+                .velZ = PVState(2, 0),
+                .posX = PVState(3, 0),
+                .posY = PVState(4, 0),
+                .posZ = PVState(5, 0),
+                .accelBX = PVState(6, 0),
+                .accelBY = PVState(7, 0),
+                .accelBZ = PVState(8, 0),
             }
         };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfPData, EKF_P_TAG);
+        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfPVStateData, EKF_PV_STATE_TAG);
+
+        BLA::Matrix<12, 1> AttekfP = ctx->estimator.getAttPDiag();
+        LogSensorData ekfAttPData = {
+            .Attekf_p = {
+                .P0 = AttekfP(0, 0),
+                .P1 = AttekfP(1, 0),
+                .P2 = AttekfP(2, 0),
+                .P3 = AttekfP(3, 0),
+                .P4 = AttekfP(4, 0),
+                .P5 = AttekfP(5, 0),
+                .P6 = AttekfP(6, 0),
+                .P7 = AttekfP(7, 0),
+                .P8 = AttekfP(8, 0),
+                .P9 = AttekfP(9, 0),
+                .P10 = AttekfP(10, 0),
+                .P11 = AttekfP(11, 0),
+            }
+        };
+        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfAttPData, EKF_ATT_P_TAG);
+
+        BLA::Matrix<10, 1> PVekfP = ctx->estimator.getPVPDiag();
+        LogSensorData ekfPVPData = {
+            .PVekf_p = {
+                .P0 = PVekfP(0, 0),
+                .P1 = PVekfP(1, 0),
+                .P2 = PVekfP(2, 0),
+                .P3 = PVekfP(3, 0),
+                .P4 = PVekfP(4, 0),
+                .P5 = PVekfP(5, 0),
+                .P6 = PVekfP(6, 0),
+                .P7 = PVekfP(7, 0),
+                .P8 = PVekfP(8, 0),
+                .P9 = PVekfP(9, 0),
+            }
+        };
+        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfPVPData, EKF_PV_P_TAG);
 
         const auto &accel_desc = ctx->asm330.get_descriptor();
         LogSensorData accel = {

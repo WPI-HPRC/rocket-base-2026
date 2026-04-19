@@ -100,14 +100,14 @@ void sensorLoop() {
 
         Serial.print("\n=== Loop ");
         Serial.print(loop_count);
-        Serial.println(" ===");
+        Serial.println(" whahoo! ===");
 
         // DIRECT ACCESS to sensor data - this is guaranteed to work
         const auto &asm330_desc = ctx.asm330.get_descriptor();
         const auto &lsm6_desc = ctx.lsm.get_descriptor();
         const auto &baro_desc = ctx.baro.get_descriptor();
         const auto &mag_desc = ctx.mag.get_descriptor();
-        // const auto &gps_desc = ctx.gps.get_descriptor();
+        const auto &gps_desc = ctx.gps.get_descriptor();
         // const auto &curr_desc = ctx.curr.get_descriptor();
 
         bool has_data = false;
@@ -133,6 +133,26 @@ void sensorLoop() {
         {
             Serial.println("LSM6DSO: No data (timestamp = 0)");
         }
+        
+        if(gps_desc.getLastUpdated()  > 0)
+        {
+            Serial.print("LIV3 - Valid: ");
+            Serial.print(gps_desc.data.valid, 4);
+            Serial.print(" | Lat: ");
+            Serial.print(gps_desc.data.lat, 4);
+            Serial.print(", Lon: ");
+            Serial.print(gps_desc.data.lon, 4);
+            Serial.print(" | Alt: ");
+            Serial.print(gps_desc.data.alt, 4);
+            Serial.print("| Sats: ");
+            Serial.print(gps_desc.data.sats, 4);
+            Serial.println();
+            has_data = true;
+        }
+        else
+        {
+            Serial.println("LIV3: No data (timestamp = 0)");
+        }
         /*
 
         // Print LPS22 data
@@ -150,33 +170,6 @@ void sensorLoop() {
             Serial.println("LPS22: No data (timestamp = 0)");
         }
 
-        if(mag_desc.getLastUpdated()  > 0)
-        {
-            Serial.print("ICM20948 - Accel: ");
-            Serial.print(mag_desc.data.accel0, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.accel1, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.accel2, 4);
-            Serial.print(" | Gyro: ");
-            Serial.print(mag_desc.data.gyr0, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.gyr1, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.gyr2, 4);
-            Serial.print(" | Mag: ");
-            Serial.print(mag_desc.data.mag0, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.mag1, 4);
-            Serial.print(", ");
-            Serial.print(mag_desc.data.mag2, 4);
-            Serial.println();
-            has_data = true;
-        }
-        else
-        {
-            Serial.println("ICM20948: No data (timestamp = 0)");
-        }
 
         if(gps_desc.getLastUpdated() > 0)
         {
@@ -248,6 +241,8 @@ void setup() {
     // NOTE: Run initialization on the first state
     initStateData(&data);
     (*initFuncs[currentState])(&data);
+
+    delay(1500);
     sensorsSetup();
     ctx.ekfLooping = false;
     ctx.sdInitialized = initializeLogging(&ctx);
@@ -255,7 +250,7 @@ void setup() {
     // ctx.airBrakes.attach(SERVO_PIN);
     // ctx.airBrakes.writeMicroseconds(SERVO_MIN);
 
-    ctx.estimator = StateEstimator();
+    ctx.estimator = SplitStateEstimator();
     
     BLA::Matrix<3, 1> ecef = {0, 0, 0};
     // ctx.estimator.init(ecef, millis());
@@ -292,14 +287,16 @@ void ekfLoop(Context *ctx) {
         if(baro_desc.getLastUpdated() > last_baro_time ||
            mag_desc.getLastUpdated() > last_mag_time ||
            gps_desc.getLastUpdated() > last_gps_time) {
-            ctx->estimator.ekfPredict(now); 
+            ctx->estimator.PVekfPredict(now); 
+            ctx->estimator.AttekfPredict(now); 
         }
     } else {
         if(asm330_desc.getLastUpdated() > last_accel_time ||
            baro_desc.getLastUpdated() > last_baro_time ||
            mag_desc.getLastUpdated() > last_mag_time ||
            gps_desc.getLastUpdated() > last_gps_time) {
-            ctx->estimator.ekfPredict(now); 
+            ctx->estimator.PVekfPredict(now); 
+            ctx->estimator.AttekfPredict(now); 
         }
     }
 
@@ -313,8 +310,8 @@ void ekfLoop(Context *ctx) {
     {
         last_baro_time = baro_desc.getLastUpdated();
         BLA::Matrix<1, 1> baro = {baro_desc.data.pressure};
-        ctx->estimator.runBaroUpdate(baro, now);
-        ctx->estimator.setTemp(baro_desc.data.temp);
+        //ctx->estimator.runBaroUpdate(baro, now);
+        //ctx->estimator.setTemp(baro_desc.data.temp);
     }
 
     if (mag_desc.getLastUpdated() > last_mag_time)
@@ -347,9 +344,11 @@ void loop() {
 
     sensorLoop();
 
+    /*
     if(ctx.ekfLooping) {
         ekfLoop(&ctx);
     }
+    */
 
     loggingLoop(&ctx);
 }
