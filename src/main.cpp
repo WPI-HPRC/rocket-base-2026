@@ -32,10 +32,21 @@ SPIClass CAMERA_SPI(CAMERA_MOSI, CAMERA_MISO, CAMERA_SCK);
 HardwareSerial RADIO_SERIAL(RADIO_SERIAL_RX, RADIO_SERIAL_TX);
 
 Context ctx {
-    .asm330 = ASM330(&SENSORS_SPI, SENSORS_ASM_CS),
+    #if defined(MOCK_SENSORS) && defined(ASM_DATA_FILENAME) && defined(ASM_DATA_RATE)
+        .asm330 = MockASM330(ASM_DATA_FILENAME, ASM_DATA_RATE),
+    #else
+        .asm330 = ASM330(&SENSORS_SPI, SENSORS_ASM_CS),
+    #endif
+
     .lsm = LSM6(&SENSORS_SPI, SENSORS_LSM_CS),
     .baro = LPS22(&SENSORS_SPI, SENSORS_LPS_CS),
-    .mag = LIS2MDL(&SENSORS_SPI, SENSORS_LIS_CS),
+
+    if defined(MOCK_SENSORS) && defined(LIS_DATA_FILENAME) && defined(LIS_DATA_RATE)
+        .mag = MockLIS2MDL(LIS_DATA_FILENAME, LIS_DATA_RATE),
+    #else
+        .mag = LIS2MDL(&SENSORS_SPI, SENSORS_LIS_CS),
+    #endif
+
     .gps = LIV3F(GPS_SERIAL)
 };
 
