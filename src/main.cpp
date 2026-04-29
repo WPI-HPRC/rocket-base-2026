@@ -242,7 +242,7 @@ void setup() {
     // ctx.airBrakes.attach(SERVO_PIN);
     // ctx.airBrakes.writeMicroseconds(SERVO_MIN);
 
-    ctx.estimator = SplitStateEstimator();
+    //ctx.estimator = SplitStateEstimator();
     
     BLA::Matrix<3, 1> ecef = {0, 0, 0};
     // ctx.estimator.init(ecef, millis());

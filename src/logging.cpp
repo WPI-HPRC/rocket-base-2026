@@ -1,16 +1,6 @@
-#include <stdint.h>
-#include "logging.h"
 #include "ff.h"
-
-size_t dataLengths[] = {
-    sizeof(ASM330Data),
-    sizeof(LIS2MDLData),
-    sizeof(LIV3FData),
-    sizeof(LPS22Data),
-    sizeof(LSM6Data),
-    sizeof(ekfState),
-    sizeof(ekfP),
-};
+#include "logging.h"
+#include <stdint.h>
 
 bool initializeLogging(Context *ctx) {
     Serial.print("Initailizing SD... ");
@@ -25,7 +15,7 @@ bool initializeLogging(Context *ctx) {
         {
             sprintf(filename, "flightData%d.csv", fileIdx);
             sprintf(errorFilename, "errorLog%d.txt", fileIdx);
-            sprintf(fixedRateLogFilename, "fixedRateLog%d.csv", fileIdx);
+            sprintf(fixedRateLogFilename, "ekflog%d.csv", fileIdx);
             fileIdx++;
 
             Serial.printf("Trying files `%s/%s`\n", filename, errorFilename);
@@ -50,7 +40,7 @@ bool initializeLogging(Context *ctx) {
 
 void loggingLoop(Context *ctx) {
     static long lastTimeFlushedFiles = 0;
-    static long lastTimeLoggedFixedRate = 0;
+    static long lastTimeLoggedEKF = 0;
 
     if (millis() - lastTimeFlushedFiles >= 2000) {
         lastTimeFlushedFiles = millis();
@@ -59,8 +49,8 @@ void loggingLoop(Context *ctx) {
         ctx->fixedRateLogFile.flush();
     }
 
-    if(millis() - lastTimeLoggedFixedRate >= 50) {
-        lastTimeLoggedFixedRate = millis();
+    if(millis() - lastTimeLoggedEKF >= 50) {
+        lastTimeLoggedEKF = millis();
         // BLA::Matrix<10, 1> ekfState = ctx->estimator.getPVState();
 
         // LogSensorData ekfStateData = {
@@ -113,77 +103,60 @@ void loggingLoop(Context *ctx) {
         //     }
         // };
         // writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &ekfPData, EKF_P_TAG);
-
-        const auto &accel_desc = ctx->asm330.get_descriptor();
-        LogSensorData accel = {
-            .asm330 = accel_desc.data
-        };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &accel, ASM330_TAG);
-
-        const auto &baro_desc = ctx->baro.get_descriptor();
-        LogSensorData baro = {
-            .lps22 = baro_desc.data
-        };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &baro, LPS22_TAG);
-        
-        const auto &mag_desc = ctx->mag.get_descriptor();
-        LogSensorData mag = {
-            .lis2m = mag_desc.data
-        };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &mag, LIS2MDLTR_TAG);
-
-        const auto &gps_desc = ctx->gps.get_descriptor();
-        LogSensorData gps = {
-            .liv3f = gps_desc.data
-        };
-        writePacket(&ctx->fixedRateLogFile, lastTimeLoggedFixedRate, &gps, LIV3F_TAG);
     }
+
+    static flatbuffers::FlatBufferBuilder builder;
 
     static long lastAccelDataAt = 0;
     const auto &accel_desc = ctx->asm330.get_descriptor();
     if (accel_desc.getLastUpdated() > lastAccelDataAt) {
         lastAccelDataAt = accel_desc.getLastUpdated();
-        LogSensorData d = {
-            .asm330 = accel_desc.data
-        };
-        writePacket(&ctx->logFile, lastAccelDataAt, &d, ASM330_TAG);
+        hprc::ASM330Data d(accel_desc.data.accel0, accel_desc.data.accel1,
+                           accel_desc.data.accel2, accel_desc.data.gyr0,
+                           accel_desc.data.gyr1, accel_desc.data.gyr2);
+
+        logSensorData(&builder, &ctx->logFile, hprc::SensorData_ASM330,(hprc::SensorData *const) &d);
     }
 
     static long lastBaroDataAt = 0;
     const auto &baro_desc = ctx->baro.get_descriptor();
     if (baro_desc.getLastUpdated() > lastBaroDataAt) {
         lastBaroDataAt = baro_desc.getLastUpdated();
-        LogSensorData d = {
-            .lps22 = baro_desc.data
-        };
-        writePacket(&ctx->logFile, lastBaroDataAt, &d, LPS22_TAG);
+        hprc::LPS22Data d(baro_desc.data.pressure, baro_desc.data.temp);
+
+        logSensorData(&builder, &ctx->logFile, hprc::SensorData_LPS22, (hprc::SensorData *const) &d);
     }
 
     static long lastMagDataAt = 0;
     const auto &mag_desc = ctx->mag.get_descriptor();
     if (mag_desc.getLastUpdated() > lastMagDataAt) {
         lastMagDataAt = mag_desc.getLastUpdated();
-        LogSensorData d = {
-            .lis2m = mag_desc.data
-        };
-        writePacket(&ctx->logFile, lastMagDataAt, &d, LIS2MDLTR_TAG);
+        hprc::LIS2MDLData d(mag_desc.data.mag0, mag_desc.data.mag1,
+                            mag_desc.data.mag2);
+
+        logSensorData(&builder, &ctx->logFile, hprc::SensorData_LIS2MDL, (hprc::SensorData *const) &d);
     }
 
     static long lastGpsDataAt = 0;
     const auto &gps_desc = ctx->gps.get_descriptor();
     if (gps_desc.getLastUpdated() > lastGpsDataAt) {
         lastGpsDataAt = gps_desc.getLastUpdated();
-        LogSensorData d = {
-            .liv3f = gps_desc.data
-        };
-        writePacket(&ctx->logFile, lastGpsDataAt, &d, LIV3F_TAG);
+        hprc::LIV3FData d(gps_desc.data.lat, gps_desc.data.lon,
+                          gps_desc.data.alt, gps_desc.data.satellites,
+                          gps_desc.data.epochTime);
+        
+        logSensorData(&builder, &ctx->logFile, hprc::SensorData_LIV3F, (hprc::SensorData *const) &d);
     }
 }
 
-void writePacket(File *logFile, uint32_t timestamp, LogSensorData *data, SensorType type) {
-    Packet packetToWrite = { type, timestamp, *data};
+void logSensorData(flatbuffers::FlatBufferBuilder *builder, File *logFile, hprc::SensorData data_type, hprc::SensorData *const &d) {
+    builder->Clear();
 
-    size_t length = sizeof(uint8_t) + sizeof(uint32_t) + dataLengths[type];
+    auto sensorData = builder->CreateStruct(d);
 
-    logFile->write((const uint8_t *)&packetToWrite, length);
+    auto packet = hprc::CreateSDPacket(*builder, millis(), data_type, sensorData.Union());
+
+    builder->FinishSizePrefixed(packet);
+
+    logFile->write(builder->GetBufferPointer(), builder->GetSize());
 }
