@@ -9,6 +9,8 @@
 #include "boilerplate/Sensors/Impl/LSM6.h"
 #include "boilerplate/qmekf-lib/include/split_mekf.h"
 
+#include "config.h"
+
 struct ASM330Data;
 struct LPS22Data;
 struct ICMData;
@@ -22,10 +24,21 @@ struct Context {
     bool sdInitialized;
     bool ekfLooping;
 
-    ASM330 asm330;
+    #if defined(MOCK_SENSORS) && defined(ASM_DATA_FILENAME) && defined(ASM_DATA_RATE)
+        MockASM330 asm330;
+    #else
+        ASM330 asm330;
+    #endif
+
     LSM6 lsm;
     LPS22 baro;
-    LIS2MDL mag;
+
+    #if defined(MOCK_SENSORS) && defined(LIS_DATA_FILENAME) && defined(LIS_DATA_RATE)
+        MockLIS2MDL mag;
+    #else
+        LIS2MDL mag;
+    #endif
+
     LIV3F gps;
     
     SplitStateEstimator estimator;
