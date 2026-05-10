@@ -9,20 +9,20 @@ bool initializeLogging(Context *ctx) {
         // TODO: Define these values
         int fileIdx = 0;
         char filename[100];
-        char errorFilename[100];
+        char debugFilename[100];
         char fixedRateLogFilename[100];
         while (fileIdx < 100)
         {
-            sprintf(filename, "flightData%d.csv", fileIdx);
-            sprintf(errorFilename, "errorLog%d.txt", fileIdx);
-            sprintf(fixedRateLogFilename, "ekflog%d.csv", fileIdx);
+            sprintf(filename, "flightData%d.fb.bin", fileIdx);
+            sprintf(debugFilename, "debugLog%d.txt", fileIdx);
+            sprintf(fixedRateLogFilename, "ekflog%d.bin", fileIdx);
             fileIdx++;
 
-            Serial.printf("Trying files `%s/%s`\n", filename, errorFilename);
+            Serial.printf("Trying files `%s/%s`\n", filename, debugFilename);
             if (!SD.exists(filename))
             {
                 ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-                ctx->errorLogFile = SD.open(errorFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+                ctx->debugLogFile = SD.open(debugFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
                 ctx->fixedRateLogFile = SD.open(fixedRateLogFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
                 break;
             }
@@ -44,7 +44,7 @@ void loggingLoop(Context *ctx) {
 
     if (millis() - lastTimeFlushedFiles >= 2000) {
         lastTimeFlushedFiles = millis();
-        ctx->errorLogFile.flush();
+        ctx->debugLogFile.flush();
         ctx->logFile.flush();
         ctx->fixedRateLogFile.flush();
     }

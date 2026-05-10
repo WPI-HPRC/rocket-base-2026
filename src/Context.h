@@ -17,7 +17,7 @@ struct INA219Data;
 
 struct Context {
     File logFile;
-    File errorLogFile;
+    File debugLogFile;
     File fixedRateLogFile;
     bool sdInitialized;
     bool ekfLooping;

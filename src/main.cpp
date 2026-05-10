@@ -331,7 +331,7 @@ void loop() {
         initStateData(&data);
         (*initFuncs[newState])(&data);
         currentState = newState;
-        ctx.errorLogFile.printf("%d %d\n", newState, millis());
+        ctx.debugLogFile.printf("to: %d @ %d\n", newState, millis());
     }
 
     sensorLoop();
