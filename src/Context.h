@@ -9,14 +9,20 @@
 #include "boilerplate/Sensors/Impl/LSM6.h"
 #include "boilerplate/qmekf-lib/include/split_mekf.h"
 
+#include "config.h"
+
 struct ASM330Data;
 struct LPS22Data;
 struct ICMData;
 struct MAX10SData;
 struct INA219Data;
 
+#define LOG_FILE_BUFFER_SIZE 16000
+
 struct Context {
     File logFile;
+    char logFileBuffer[LOG_FILE_BUFFER_SIZE];
+    size_t logFileBufferEnd = 0;
     File debugLogFile;
     File fixedRateLogFile;
     bool sdInitialized;

@@ -5,3 +5,4 @@ compile_commands.json
 .vscode*
 tools
 lib/telemetry-generated
+decoded/

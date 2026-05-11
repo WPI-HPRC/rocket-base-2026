@@ -65,14 +65,14 @@ StateID prelaunchLoop(StateData *data, Context *ctx) {
     return BOOST;
   }
 
-  if (ctx->sdInitialized && ctx->logFile != NULL) {
-    // blink
-    if ((millis() - lastBlueToggleTime) > 250) {
-      lastBlueToggleTime = millis();
-      BlueLedState = !BlueLedState;
-      digitalWrite(LED_BLUE, BlueLedState);
-    }
-  }
+  // if (ctx->sdInitialized && ctx->logFile != NULL) {
+  //   // blink
+  //   if ((millis() - lastBlueToggleTime) > 250) {
+  //     lastBlueToggleTime = millis();
+  //     BlueLedState = !BlueLedState;
+  //     digitalWrite(LED_BLUE, BlueLedState);
+  //   }
+  // }
 
   // if (gps_desc.data.gpsLockType == 3) {
     // if ((millis() - lastGreenToggleTime) > 250) {
