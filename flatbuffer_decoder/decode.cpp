@@ -1,4 +1,5 @@
 #include "SdData_generated.h"
+#include "Sensors_generated.h"
 #include "flatbuffers/flatbuffers.h"
 #include <cstdio>
 #include <cstring>
@@ -64,42 +65,35 @@ int main(int argc, char **argv) {
 
     const SDPacket *packet = GetSizePrefixedSDPacket(head);
     head += nextPacketSize;
-    switch (packet->data_type()) {
-    case SensorData_NONE:
-      break;
-    case SensorData_ASM330:
-      fprintf(
-          asm330, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
-          packet->data_as_ASM330()->accel0(),
-          packet->data_as_ASM330()->accel1(),
-          packet->data_as_ASM330()->accel2(), packet->data_as_ASM330()->gyr0(),
-          packet->data_as_ASM330()->gyr1(), packet->data_as_ASM330()->gyr2());
-      break;
-    case SensorData_LSM6:
+    const Sensors *sensors = packet->sensors();
+    uint8_t bitfield = sensors->bitfield();
+
+    if (bitfield & SensorBitfield_ASM330) {
+      fprintf(asm330, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
+              sensors->ASM330()->accel0(), sensors->ASM330()->accel1(),
+              sensors->ASM330()->accel2(), sensors->ASM330()->gyr0(),
+              sensors->ASM330()->gyr1(), sensors->ASM330()->gyr2());
+    }
+    if (bitfield & SensorBitfield_LSM6) {
       fprintf(lsm6, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
-              packet->data_as_LSM6()->accel0(),
-              packet->data_as_LSM6()->accel1(),
-              packet->data_as_LSM6()->accel2(), packet->data_as_LSM6()->gyr0(),
-              packet->data_as_LSM6()->gyr1(), packet->data_as_LSM6()->gyr2());
-      break;
-    case SensorData_LIS2MDL:
+              sensors->LSM6()->accel0(), sensors->LSM6()->accel1(),
+              sensors->LSM6()->accel2(), sensors->LSM6()->gyr0(),
+              sensors->LSM6()->gyr1(), sensors->LSM6()->gyr2());
+    }
+    if (bitfield & SensorBitfield_LIS2MDL) {
       fprintf(lis2mdl, "%d,%.8f,%.8f,%.8f\n", packet->timestamp(),
-              packet->data_as_LIS2MDL()->mag0(),
-              packet->data_as_LIS2MDL()->mag1(),
-              packet->data_as_LIS2MDL()->mag2());
-      break;
-    case SensorData_LPS22:
+              sensors->LIS2MDL()->mag0(), sensors->LIS2MDL()->mag1(),
+              sensors->LIS2MDL()->mag2());
+    }
+    if (bitfield & SensorBitfield_LPS22) {
       fprintf(lps22, "%d,%.8f,%.8f\n", packet->timestamp(),
-              packet->data_as_LPS22()->pressure(),
-              packet->data_as_LPS22()->temp());
-      break;
-    case SensorData_LIV3F:
+              sensors->LPS22()->pressure(), sensors->LPS22()->temp());
+    }
+    if (bitfield & SensorBitfield_LIV3F) {
       fprintf(liv3f, "%d,%.8f,%.8f,%.8f,%hhd,%d\n", packet->timestamp(),
-              packet->data_as_LIV3F()->lat(), packet->data_as_LIV3F()->lon(),
-              packet->data_as_LIV3F()->alt(),
-              packet->data_as_LIV3F()->satellites(),
-              packet->data_as_LIV3F()->epochTime());
-      break;
+              sensors->LIV3F()->lat(), sensors->LIV3F()->lon(),
+              sensors->LIV3F()->alt(), sensors->LIV3F()->satellites(),
+              sensors->LIV3F()->epochTime());
     }
   }
 

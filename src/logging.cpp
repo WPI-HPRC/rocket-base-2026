@@ -1,5 +1,6 @@
 #include "Context.h"
 #include "SdData_generated.h"
+#include "Sensors_generated.h"
 #include "ff.h"
 #include "logging.h"
 #include <stdint.h>
@@ -109,54 +110,100 @@ void loggingLoop(Context *ctx) {
 
   static flatbuffers::FlatBufferBuilder builder;
 
-  static long lastASM330DataAt = 0;
+  bool hasData = false;
+  hprc::SensorsBuilder sensorBuilder(builder);
+  uint8_t bitfield = 0;
+  uint32_t earliestTimestamp = UINT32_MAX;
+
+  static uint32_t lastASM330DataAt = 0;
   const auto &asm330_desc = ctx->asm330.get_descriptor();
   if (asm330_desc.getLastUpdated() > lastASM330DataAt) {
     lastASM330DataAt = asm330_desc.getLastUpdated();
-    hprc::ASM330Data d(asm330_desc.data.accel0, asm330_desc.data.accel1,
-                       asm330_desc.data.accel2, asm330_desc.data.gyr0,
-                       asm330_desc.data.gyr1, asm330_desc.data.gyr2);
+    earliestTimestamp = std::min(earliestTimestamp, lastASM330DataAt);
 
-    logSensorData(ctx, builder, hprc::SensorData_ASM330, d);
+    hprc::ASM330Data asm330Data(asm330_desc.data.accel0,
+                                asm330_desc.data.accel1,
+                                asm330_desc.data.accel2, asm330_desc.data.gyr0,
+                                asm330_desc.data.gyr1, asm330_desc.data.gyr2);
+    sensorBuilder.add_ASM330(&asm330Data);
+
+    bitfield |= hprc::SensorBitfield_ASM330;
+    hasData = true;
   }
 
-  static long lastLSM6DataAt = 0;
+  static uint32_t lastLSM6DataAt = 0;
   const auto &lsm6_desc = ctx->lsm.get_descriptor();
   if (lsm6_desc.getLastUpdated() > lastLSM6DataAt) {
     lastLSM6DataAt = lsm6_desc.getLastUpdated();
-    hprc::LSM6Data d(lsm6_desc.data.accel0, lsm6_desc.data.accel1,
-                     lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
-                     lsm6_desc.data.gyr1, lsm6_desc.data.gyr2);
+    earliestTimestamp = std::min(earliestTimestamp, lastLSM6DataAt);
 
-    logSensorData(ctx, builder, hprc::SensorData_LSM6, d);
+    hprc::LSM6Data lsm6Data(lsm6_desc.data.accel0, lsm6_desc.data.accel1,
+                            lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
+                            lsm6_desc.data.gyr1, lsm6_desc.data.gyr2);
+    sensorBuilder.add_LSM6(&lsm6Data);
+
+    bitfield |= hprc::SensorBitfield_LSM6;
+    hasData = true;
   }
 
-  static long lastBaroDataAt = 0;
+  static uint32_t lastBaroDataAt = 0;
   const auto &baro_desc = ctx->baro.get_descriptor();
   if (baro_desc.getLastUpdated() > lastBaroDataAt) {
     lastBaroDataAt = baro_desc.getLastUpdated();
-    hprc::LPS22Data d(baro_desc.data.pressure, baro_desc.data.temp);
+    earliestTimestamp = std::min(earliestTimestamp, lastBaroDataAt);
 
-    logSensorData(ctx, builder, hprc::SensorData_LPS22, d);
+    hprc::LPS22Data baroData(baro_desc.data.pressure, baro_desc.data.temp);
+    sensorBuilder.add_LPS22(&baroData);
+
+    bitfield |= hprc::SensorBitfield_LPS22;
+    hasData = true;
   }
 
-  static long lastMagDataAt = 0;
+  static uint32_t lastMagDataAt = 0;
   const auto &mag_desc = ctx->mag.get_descriptor();
   if (mag_desc.getLastUpdated() > lastMagDataAt) {
     lastMagDataAt = mag_desc.getLastUpdated();
-    hprc::LIS2MDLData d(mag_desc.data.mag0, mag_desc.data.mag1,
-                        mag_desc.data.mag2);
+    earliestTimestamp = std::min(earliestTimestamp, lastMagDataAt);
 
-    logSensorData(ctx, builder, hprc::SensorData_LIS2MDL, d);
+    hprc::LIS2MDLData magData(mag_desc.data.mag0, mag_desc.data.mag1,
+                              mag_desc.data.mag2);
+    sensorBuilder.add_LIS2MDL(&magData);
+
+    bitfield |= hprc::SensorBitfield_LIS2MDL;
+    hasData = true;
   }
 
-  static long lastGpsDataAt = 0;
+  static uint32_t lastGpsDataAt = 0;
   const auto &gps_desc = ctx->gps.get_descriptor();
   if (gps_desc.getLastUpdated() > lastGpsDataAt) {
     lastGpsDataAt = gps_desc.getLastUpdated();
-    hprc::LIV3FData d(gps_desc.data.lat, gps_desc.data.lon, gps_desc.data.alt,
-                      gps_desc.data.satellites, gps_desc.data.epochTime);
+    earliestTimestamp = std::min(earliestTimestamp, lastGpsDataAt);
 
-    logSensorData(ctx, builder, hprc::SensorData_LIV3F, d);
+    hprc::LIV3FData gpsData(gps_desc.data.lat, gps_desc.data.lon,
+                            gps_desc.data.alt, gps_desc.data.satellites,
+                            gps_desc.data.epochTime);
+    sensorBuilder.add_LIV3F(&gpsData);
+
+    bitfield |= hprc::SensorBitfield_LIV3F;
+    hasData = true;
+  }
+
+  if (hasData) {
+    sensorBuilder.add_bitfield(hprc::SensorBitfield{bitfield});
+    auto packet = hprc::CreateSDPacket(builder, earliestTimestamp,
+                                       sensorBuilder.Finish());
+
+    builder.FinishSizePrefixed(packet);
+
+    if (ctx->logFileBufferEnd + builder.GetSize() >= LOG_FILE_BUFFER_SIZE) {
+      ctx->logFile.write(ctx->logFileBuffer, ctx->logFileBufferEnd);
+      ctx->logFile.flush();
+      ctx->logFileBufferEnd = 0;
+    }
+    memcpy(ctx->logFileBuffer + ctx->logFileBufferEnd,
+           builder.GetBufferPointer(), builder.GetSize());
+    ctx->logFileBufferEnd += builder.GetSize();
+
+    builder.Clear();
   }
 }
