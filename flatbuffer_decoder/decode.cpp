@@ -42,10 +42,6 @@ int main(int argc, char **argv) {
   size_t endIdx = fread(head, 1, 1024, data);
 
   while (true) {
-    if (head - buff >= endIdx) {
-      break;
-    }
-
     uoffset_t remainingBytes = endIdx - (head - buff);
 
     uoffset_t nextPacketSize = *(uoffset_t *)head + sizeof(uoffset_t);
@@ -66,30 +62,29 @@ int main(int argc, char **argv) {
     const SDPacket *packet = GetSizePrefixedSDPacket(head);
     head += nextPacketSize;
     const Sensors *sensors = packet->sensors();
-    uint8_t bitfield = sensors->bitfield();
 
-    if (bitfield & SensorBitfield_ASM330) {
+    if (sensors->ASM330() != nullptr) {
       fprintf(asm330, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
               sensors->ASM330()->accel0(), sensors->ASM330()->accel1(),
               sensors->ASM330()->accel2(), sensors->ASM330()->gyr0(),
               sensors->ASM330()->gyr1(), sensors->ASM330()->gyr2());
     }
-    if (bitfield & SensorBitfield_LSM6) {
+    if (sensors->LSM6() != nullptr) {
       fprintf(lsm6, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
               sensors->LSM6()->accel0(), sensors->LSM6()->accel1(),
               sensors->LSM6()->accel2(), sensors->LSM6()->gyr0(),
               sensors->LSM6()->gyr1(), sensors->LSM6()->gyr2());
     }
-    if (bitfield & SensorBitfield_LIS2MDL) {
+    if (sensors->LIS2MDL() != nullptr) {
       fprintf(lis2mdl, "%d,%.8f,%.8f,%.8f\n", packet->timestamp(),
               sensors->LIS2MDL()->mag0(), sensors->LIS2MDL()->mag1(),
               sensors->LIS2MDL()->mag2());
     }
-    if (bitfield & SensorBitfield_LPS22) {
+    if (sensors->LPS22() != nullptr) {
       fprintf(lps22, "%d,%.8f,%.8f\n", packet->timestamp(),
               sensors->LPS22()->pressure(), sensors->LPS22()->temp());
     }
-    if (bitfield & SensorBitfield_LIV3F) {
+    if (sensors->LIV3F() != nullptr) {
       fprintf(liv3f, "%d,%.8f,%.8f,%.8f,%hhd,%d\n", packet->timestamp(),
               sensors->LIV3F()->lat(), sensors->LIV3F()->lon(),
               sensors->LIV3F()->alt(), sensors->LIV3F()->satellites(),

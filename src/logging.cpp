@@ -14,13 +14,15 @@ bool initializeLogging(Context *ctx) {
     char filename[100];
     char debugFilename[100];
     char fixedRateLogFilename[100];
+
+    SD.mkdir(LOG_FOLDER_NAME);
     while (fileIdx < 100) {
-      sprintf(filename, "flightData%d.fb.bin", fileIdx);
-      sprintf(debugFilename, "debugLog%d.txt", fileIdx);
-      sprintf(fixedRateLogFilename, "ekflog%d.bin", fileIdx);
+      sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
+      sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
+      sprintf(fixedRateLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
       fileIdx++;
 
-      Serial.printf("Trying files `%s/%s`\n", filename, debugFilename);
+      Serial.printf("Trying file `%s`\n", filename);
       if (!SD.exists(filename)) {
         ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
         ctx->debugLogFile =
@@ -112,7 +114,6 @@ void loggingLoop(Context *ctx) {
 
   bool hasData = false;
   hprc::SensorsBuilder sensorBuilder(builder);
-  uint8_t bitfield = 0;
   uint32_t earliestTimestamp = UINT32_MAX;
 
   static uint32_t lastASM330DataAt = 0;
@@ -127,7 +128,6 @@ void loggingLoop(Context *ctx) {
                                 asm330_desc.data.gyr1, asm330_desc.data.gyr2);
     sensorBuilder.add_ASM330(&asm330Data);
 
-    bitfield |= hprc::SensorBitfield_ASM330;
     hasData = true;
   }
 
@@ -142,7 +142,6 @@ void loggingLoop(Context *ctx) {
                             lsm6_desc.data.gyr1, lsm6_desc.data.gyr2);
     sensorBuilder.add_LSM6(&lsm6Data);
 
-    bitfield |= hprc::SensorBitfield_LSM6;
     hasData = true;
   }
 
@@ -155,7 +154,6 @@ void loggingLoop(Context *ctx) {
     hprc::LPS22Data baroData(baro_desc.data.pressure, baro_desc.data.temp);
     sensorBuilder.add_LPS22(&baroData);
 
-    bitfield |= hprc::SensorBitfield_LPS22;
     hasData = true;
   }
 
@@ -169,7 +167,6 @@ void loggingLoop(Context *ctx) {
                               mag_desc.data.mag2);
     sensorBuilder.add_LIS2MDL(&magData);
 
-    bitfield |= hprc::SensorBitfield_LIS2MDL;
     hasData = true;
   }
 
@@ -184,12 +181,10 @@ void loggingLoop(Context *ctx) {
                             gps_desc.data.epochTime);
     sensorBuilder.add_LIV3F(&gpsData);
 
-    bitfield |= hprc::SensorBitfield_LIV3F;
     hasData = true;
   }
 
   if (hasData) {
-    sensorBuilder.add_bitfield(hprc::SensorBitfield{bitfield});
     auto packet = hprc::CreateSDPacket(builder, earliestTimestamp,
                                        sensorBuilder.Finish());
 

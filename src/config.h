@@ -21,3 +21,4 @@
     #define LIS_DATA_RATE 250
 #endif
 
+#define LOG_FOLDER_NAME "flightData"
