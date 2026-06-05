@@ -126,7 +126,7 @@ void loggingLoop(Context *ctx) {
                                 asm330_desc.data.accel1,
                                 asm330_desc.data.accel2, asm330_desc.data.gyr0,
                                 asm330_desc.data.gyr1, asm330_desc.data.gyr2);
-    sensorBuilder.add_ASM330(&asm330Data);
+    sensorBuilder.add_asm330(&asm330Data);
 
     hasData = true;
   }
@@ -140,7 +140,7 @@ void loggingLoop(Context *ctx) {
     hprc::LSM6Data lsm6Data(lsm6_desc.data.accel0, lsm6_desc.data.accel1,
                             lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
                             lsm6_desc.data.gyr1, lsm6_desc.data.gyr2);
-    sensorBuilder.add_LSM6(&lsm6Data);
+    sensorBuilder.add_lsm6(&lsm6Data);
 
     hasData = true;
   }
@@ -152,7 +152,7 @@ void loggingLoop(Context *ctx) {
     earliestTimestamp = std::min(earliestTimestamp, lastBaroDataAt);
 
     hprc::LPS22Data baroData(baro_desc.data.pressure, baro_desc.data.temp);
-    sensorBuilder.add_LPS22(&baroData);
+    sensorBuilder.add_lps22(&baroData);
 
     hasData = true;
   }
@@ -165,7 +165,7 @@ void loggingLoop(Context *ctx) {
 
     hprc::LIS2MDLData magData(mag_desc.data.mag0, mag_desc.data.mag1,
                               mag_desc.data.mag2);
-    sensorBuilder.add_LIS2MDL(&magData);
+    sensorBuilder.add_lis2mdl(&magData);
 
     hasData = true;
   }
@@ -179,7 +179,7 @@ void loggingLoop(Context *ctx) {
     hprc::LIV3FData gpsData(gps_desc.data.lat, gps_desc.data.lon,
                             gps_desc.data.alt, gps_desc.data.satellites,
                             gps_desc.data.epochTime);
-    sensorBuilder.add_LIV3F(&gpsData);
+    sensorBuilder.add_liv3f(&gpsData);
 
     hasData = true;
   }
