@@ -11,6 +11,8 @@
 
 #include "config.h"
 
+#include "LoRaE22.h"
+
 struct ASM330Data;
 struct LPS22Data;
 struct ICMData;
@@ -33,6 +35,8 @@ struct Context {
     LPS22 baro;
     LIS2MDL mag;
     LIV3F gps;
+
+    LoRaE22 radio;
     
     SplitStateEstimator estimator;
 };

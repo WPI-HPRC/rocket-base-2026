@@ -1,5 +1,6 @@
 #include "Context.h"
 #include "boilerplate/Sensors/Impl/LIV3F.h"
+#include "variant_MARSV21.h"
 #include <Arduino.h>
 #ifdef __has_include
 #if __has_include("states/States.h")
@@ -20,6 +21,8 @@
 
 #include "logging.h"
 
+#include "LoRaE22.h"
+#include "RadioConfig.h"
 #include <HardwareSerial.h>
 #include <SPI.h>
 #include <Wire.h>
@@ -31,11 +34,14 @@ TwoWire CONNECTOR_I2C(CONNECTOR_I2C_SDA, CONNECTOR_I2C_SCL);
 SPIClass CAMERA_SPI(CAMERA_MOSI, CAMERA_MISO, CAMERA_SCK);
 HardwareSerial RADIO_SERIAL(RADIO_SERIAL_RX, RADIO_SERIAL_TX);
 
-Context ctx{.asm330 = ASM330(&SENSORS_SPI, SENSORS_ASM_CS),
-            .lsm = LSM6(&SENSORS_SPI, SENSORS_LSM_CS),
-            .baro = LPS22(&SENSORS_SPI, SENSORS_LPS_CS),
-            .mag = LIS2MDL(&SENSORS_SPI, SENSORS_LIS_CS),
-            .gps = LIV3F(GPS_SERIAL)};
+Context ctx{
+    .asm330 = ASM330(&SENSORS_SPI, SENSORS_ASM_CS),
+    .lsm = LSM6(&SENSORS_SPI, SENSORS_LSM_CS),
+    .baro = LPS22(&SENSORS_SPI, SENSORS_LPS_CS),
+    .mag = LIS2MDL(&SENSORS_SPI, SENSORS_LIS_CS),
+    .gps = LIV3F(GPS_SERIAL),
+    .radio = LoRaE22(&RADIO_SERIAL, RADIO_M0, RADIO_M1, RADIO_AUX, "KV0R"),
+};
 
 SensorManager mgr{
     millis, ctx.asm330, ctx.lsm, ctx.baro, ctx.mag, ctx.gps,
@@ -43,6 +49,152 @@ SensorManager mgr{
 
 StateID currentState;
 StateData data;
+
+bool changeSerialPortConfig(RadioConfigTypes::SerialSpeeds baudRate,
+                            RadioConfigTypes::ParityConfig parity) {
+  // this is safe to call even when the port is not open.
+  RADIO_SERIAL.end();
+
+  uint32_t baud = 0;
+  uint16_t parityConfig = 0;
+
+  // the radio's baud rates don't follow any pattern over the entire range, so
+  // ugly switch statement it is
+  switch (baudRate) {
+  case RadioConfigTypes::SerialSpeeds::BAUD_1200:
+    baud = 1200;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_2400:
+    baud = 2400;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_4800:
+    baud = 4800;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_9600:
+    baud = 9600;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_19200:
+    baud = 19200;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_38400:
+    baud = 38400;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_57600:
+    baud = 57600;
+    break;
+  case RadioConfigTypes::SerialSpeeds::BAUD_115200:
+    baud = 115200;
+    break;
+  };
+  // this is just easier
+  switch (parity) {
+  case RadioConfigTypes::ParityConfig::Parity_8N1:
+    parityConfig = SERIAL_8N1;
+    break;
+  case RadioConfigTypes::ParityConfig::Parity_8E1:
+    parityConfig = SERIAL_8E1;
+    break;
+  case RadioConfigTypes::ParityConfig::Parity_8O1:
+    parityConfig = SERIAL_8O1;
+    break;
+  };
+
+  RADIO_SERIAL.begin(baud, parityConfig);
+
+  return true;
+}
+
+void radioInit() {
+  // build our config
+  RadioConfig config;
+  config.address = ADDRESS;
+  config.networkId = NETWORKID;
+  config.encryptionKey = ENCRYPTIONKEY;
+  config.parityConfig = PARITYCONFIG;
+  config.serialSpeed = SERIALSPEED;
+  config.airDataRate = AIRDATARATE;
+  config.packetSize = PACKETSIZE;
+  config.worMode = WORMODE;
+  config.worPeriod = WORPERIOD;
+  config.relayMode = RELAYMODE;
+  config.destination = DESTINATIONMODE;
+  config.txPower = dBm33;
+  config.ambientRSSIEnabled = AMBIENTRSSI;
+  config.rssiReadingsEnabled = RSSIREADINGS;
+  config.listenBeforeTxEnable = LISTENBEFORETX;
+  ctx.radio.setConfig(config);
+  ctx.radio.setFrequency(FREQUENCY);
+
+  ctx.radio.changeSerialPortCallback(changeSerialPortConfig);
+  ctx.radio.setTimeout(2000);
+
+  int8_t code = ctx.radio.init(3);
+  ctx.radio.setMode(RadioMode::Normal);
+
+  Log.infoln("radio init done, code: %d", code);
+}
+
+void radioLoop() {
+  // static flatbuffers::FlatBufferBuilder builder;
+  // static uint8_t rxBuff[1024];
+  // static ssize_t lastCmdNum = -1;
+  static uint32_t lastRadioSendTime = 0;
+
+  ctx.radio.update();
+
+  if (millis() - lastRadioSendTime >= 200) {
+    lastRadioSendTime = millis();
+    const auto &asm330_desc = ctx.asm330.get_descriptor();
+    const auto &lsm6_desc = ctx.lsm.get_descriptor();
+    const auto &baro_desc = ctx.baro.get_descriptor();
+    const auto &mag_desc = ctx.mag.get_descriptor();
+    const auto &gps_desc = ctx.gps.get_descriptor();
+
+    RADIO_SERIAL.print(" KV0R");
+    // bool has_data = false;
+    // // Print LSM6 data
+    if (lsm6_desc.getLastUpdated() > 0) {
+      RADIO_SERIAL.print(" ");
+      RADIO_SERIAL.print(lsm6_desc.data.accel2);
+    }
+
+    // // Print ASM330 data
+    if (asm330_desc.getLastUpdated() > 0) {
+      RADIO_SERIAL.print(" ");
+      RADIO_SERIAL.print(asm330_desc.data.accel2);
+    }
+
+    RADIO_SERIAL.println();
+
+    // if (mag_desc.getLastUpdated() > 0) {
+    //   RADIO_SERIAL.printf("%f\n", mag_desc.data.mag0);
+    // }
+
+    // hprc::Sensors sensors = hprc::Sensors(
+    //     asm330_desc.data.accel0, asm330_desc.data.accel1,
+    //     asm330_desc.data.accel2, asm330_desc.data.gyr0,
+    //     asm330_desc.data.gyr1, asm330_desc.data.gyr2, lsm6_desc.data.accel0,
+    //     lsm6_desc.data.accel1, lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
+    //     lsm6_desc.data.gyr1, lsm6_desc.data.gyr2, mag_desc.data.mag0,
+    //     mag_desc.data.mag1, mag_desc.data.mag2, baro_desc.data.pressure,
+    //     baro_desc.data.temp);
+
+    // builder.Clear();
+
+    // flatbuffers::Offset<hprc::RocketCanardsTelemetryPacket> packetInner =
+    //     hprc::CreateRocketCanardsTelemetryPacket(builder, nullptr,
+    //                                              hprc::States_Start,
+    //                                              &sensors);
+
+    // flatbuffers::Offset<hprc::Packet> packet = hprc::CreatePacket(
+    //     builder, hprc::PacketUnion_RocketCanardsTelemetryPacket,
+    //     packetInner.Union());
+
+    // builder.Finish(packet);
+
+    // ctx.radio.sendMessage(builder.GetBufferPointer(), builder.GetSize());
+  }
+}
 
 void initStateData(StateData *data) {
   data->startTime = millis();
@@ -151,6 +303,10 @@ void sensorLoop() {
 }
 
 void setup() {
+  pinMode(MOSFET_GATE, OUTPUT);
+  pinMode(ADC_INP4, INPUT);
+  digitalWrite(MOSFET_GATE, HIGH);
+
   currentState = PRELAUNCH;
   data = {};
 
@@ -163,6 +319,8 @@ void setup() {
   digitalWrite(LED_RED, HIGH);
 
   Serial.begin(115200);
+  // radioInit();
+
   while (!Serial) {
     delay(10);
   }
@@ -282,6 +440,16 @@ void loop() {
   }
 
   sensorLoop();
+
+  // radioLoop();
+
+  // static uint32_t lastCurrentLogTime = 0;
+  // if (millis() - lastCurrentLogTime >= 200) {
+  //   lastCurrentLogTime = millis();
+  //   uint32_t val = analogRead(MOSFET_CURRENT);
+  //   Log.infoln("Current: %d (raw: %d)", ((val * 330 * 1000) / 1023) / 10,
+  //   val); Log.infoln("thing: %d", digitalRead(ADC_INP4));
+  // }
 
   if (false && ctx.ekfLooping) {
     ekfLoop(&ctx);
