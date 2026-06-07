@@ -8,6 +8,28 @@
   #include "States.h"
   #include "../State.h"
 
+  hprc::States stateToTelemState(StateID state) {
+      switch (state) {
+      case PRELAUNCH:
+          return hprc::States_PreLaunch;
+      case BOOST:
+          return hprc::States_Boost;
+      case COAST:
+          return hprc::States_Coast;
+      case DROGUE_DESCENT:
+          return hprc::States_DrogueDescent;
+      case MAIN_DESCENT:
+          return hprc::States_MainDescent;
+      case RECOVERY:
+          return hprc::States_Recovery;
+      case ABORT:
+          return hprc::States_Abort;
+      case NUM_STATES:
+          return hprc::States_Start;
+      }
+      return hprc::States_Start;
+  }
+
 
   StateInitFunc initFuncs[NUM_STATES] = {};
   StateLoopFunc loopFuncs[NUM_STATES] = {};

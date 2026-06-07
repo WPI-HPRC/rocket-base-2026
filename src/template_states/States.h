@@ -1,8 +1,6 @@
 #pragma once
 
-#include "Context.h"
-#include "debouncer.h"
-
+#include "States_generated.h"
 enum StateID {
     PRELAUNCH,
     BOOST,
@@ -14,18 +12,17 @@ enum StateID {
     NUM_STATES
 };
 
+hprc::States stateToTelemState(StateID state);
+
 struct StateData {
     long long currentTime;
     long long deltaTime;
     long long loopCount;
     long long startTime;
     long long lastLoopTime;
-    uint32_t lastAccelReadingTime;
-    uint32_t lastBaroReadingTime;
-    Debouncer baroDebouncer = Debouncer(20);
-    Debouncer accelDebouncer = Debouncer(20);
-    Debouncer velDebouncer = Debouncer(20);
 };
+
+struct Context;
 
 // ABORT
 void abortInit (StateData* data);

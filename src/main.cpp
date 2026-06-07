@@ -1,31 +1,21 @@
 #include "Context.h"
-#include "boilerplate/Sensors/Impl/LIV3F.h"
 #include "variant_MARSV21.h"
 #include <Arduino.h>
-#ifdef __has_include
-#if __has_include("states/States.h")
-#include "State.h"
-#include "states/States.h"
-#else
-#include "template_states/States.h"
-#define TEMPLATE_STATES_OVERRIDE
-#include "State.h"
-#endif
-#else
-#warning No __has_include, falling back to template_states
-#include "template_states/States.h"
-#endif
+
+#include <HardwareSerial.h>
+#include <SPI.h>
+#include <Wire.h>
+
+#include "Packet_generated.h"
 
 #include "boilerplate/Sensors/Impl/ASM330.h"
+#include "boilerplate/Sensors/Impl/LIV3F.h"
 #include "boilerplate/Sensors/SensorManager/SensorManager.h"
 
 #include "logging.h"
 
 #include "LoRaE22.h"
 #include "RadioConfig.h"
-#include <HardwareSerial.h>
-#include <SPI.h>
-#include <Wire.h>
 
 SPIClass SENSORS_SPI(SENSORS_SPI_MOSI, SENSORS_SPI_MISO, SENSORS_SPI_SCK);
 TwoWire GPS_I2C(GPS_I2C_SDA, GPS_I2C_SCL);
@@ -44,10 +34,9 @@ Context ctx{
 };
 
 SensorManager mgr{
-    millis, ctx.asm330, ctx.lsm, ctx.baro, ctx.mag, ctx.gps,
+  millis, ctx.baro, ctx.asm330, ctx.lsm, ctx.mag, ctx.gps,
 };
 
-StateID currentState;
 StateData data;
 
 bool changeSerialPortConfig(RadioConfigTypes::SerialSpeeds baudRate,
@@ -135,10 +124,11 @@ void radioInit() {
 }
 
 void radioLoop() {
-  // static flatbuffers::FlatBufferBuilder builder;
-  // static uint8_t rxBuff[1024];
-  // static ssize_t lastCmdNum = -1;
+  static flatbuffers::FlatBufferBuilder builder;
+  static uint8_t rxBuff[1024];
+  static uint16_t lastCmdNum = 0;
   static uint32_t lastRadioSendTime = 0;
+  static uint32_t loopCount = 0;
 
   ctx.radio.update();
 
@@ -150,49 +140,69 @@ void radioLoop() {
     const auto &mag_desc = ctx.mag.get_descriptor();
     const auto &gps_desc = ctx.gps.get_descriptor();
 
-    RADIO_SERIAL.print(" KV0R");
-    // bool has_data = false;
-    // // Print LSM6 data
-    if (lsm6_desc.getLastUpdated() > 0) {
-      RADIO_SERIAL.print(" ");
-      RADIO_SERIAL.print(lsm6_desc.data.accel2);
+    builder.Clear();
+    hprc::SensorsBuilder sensorBuilder(builder);
+
+    static uint32_t lastASM330DataAt = 0;
+    if (asm330_desc.getLastUpdated() > lastASM330DataAt) {
+      lastASM330DataAt = asm330_desc.getLastUpdated();
+
+      hprc::ASM330Data asm330Data(asm330_desc.data.accel0,
+                                  asm330_desc.data.accel1,
+                                  asm330_desc.data.accel2, asm330_desc.data.gyr0,
+                                  asm330_desc.data.gyr1, asm330_desc.data.gyr2);
+      sensorBuilder.add_asm330(&asm330Data);
     }
 
-    // // Print ASM330 data
-    if (asm330_desc.getLastUpdated() > 0) {
-      RADIO_SERIAL.print(" ");
-      RADIO_SERIAL.print(asm330_desc.data.accel2);
+    static uint32_t lastLSM6DataAt = 0;
+    if (lsm6_desc.getLastUpdated() > lastLSM6DataAt) {
+      lastLSM6DataAt = lsm6_desc.getLastUpdated();
+
+      hprc::LSM6Data lsm6Data(lsm6_desc.data.accel0, lsm6_desc.data.accel1,
+                              lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
+                              lsm6_desc.data.gyr1, lsm6_desc.data.gyr2);
+      sensorBuilder.add_lsm6(&lsm6Data);
     }
 
-    RADIO_SERIAL.println();
+    static uint32_t lastBaroDataAt = 0;
+    if (baro_desc.getLastUpdated() > lastBaroDataAt) {
+      lastBaroDataAt = baro_desc.getLastUpdated();
 
-    // if (mag_desc.getLastUpdated() > 0) {
-    //   RADIO_SERIAL.printf("%f\n", mag_desc.data.mag0);
-    // }
+      hprc::LPS22Data baroData(baro_desc.data.pressure, baro_desc.data.temp);
+      sensorBuilder.add_lps22(&baroData);
+    }
 
-    // hprc::Sensors sensors = hprc::Sensors(
-    //     asm330_desc.data.accel0, asm330_desc.data.accel1,
-    //     asm330_desc.data.accel2, asm330_desc.data.gyr0,
-    //     asm330_desc.data.gyr1, asm330_desc.data.gyr2, lsm6_desc.data.accel0,
-    //     lsm6_desc.data.accel1, lsm6_desc.data.accel2, lsm6_desc.data.gyr0,
-    //     lsm6_desc.data.gyr1, lsm6_desc.data.gyr2, mag_desc.data.mag0,
-    //     mag_desc.data.mag1, mag_desc.data.mag2, baro_desc.data.pressure,
-    //     baro_desc.data.temp);
+    static uint32_t lastMagDataAt = 0;
+    if (mag_desc.getLastUpdated() > lastMagDataAt) {
+      lastMagDataAt = mag_desc.getLastUpdated();
 
-    // builder.Clear();
+      hprc::LIS2MDLData magData(mag_desc.data.mag0, mag_desc.data.mag1,
+                                mag_desc.data.mag2);
+      sensorBuilder.add_lis2mdl(&magData);
+    }
 
-    // flatbuffers::Offset<hprc::RocketCanardsTelemetryPacket> packetInner =
-    //     hprc::CreateRocketCanardsTelemetryPacket(builder, nullptr,
-    //                                              hprc::States_Start,
-    //                                              &sensors);
+    static uint32_t lastGpsDataAt = 0;
+    if (gps_desc.getLastUpdated() > lastGpsDataAt) {
+      lastGpsDataAt = gps_desc.getLastUpdated();
 
-    // flatbuffers::Offset<hprc::Packet> packet = hprc::CreatePacket(
-    //     builder, hprc::PacketUnion_RocketCanardsTelemetryPacket,
-    //     packetInner.Union());
+      hprc::LIV3FData gpsData(gps_desc.data.lat, gps_desc.data.lon,
+                              gps_desc.data.alt, gps_desc.data.satellites,
+                              gps_desc.data.epochTime);
+      sensorBuilder.add_liv3f(&gpsData);
+    }
 
-    // builder.Finish(packet);
+    hprc::Shared sharedData;
+    sharedData.mutate_time_from_boot(millis());
+    sharedData.mutate_last_command_received(lastCmdNum);
+    sharedData.mutate_sd_file_no(ctx.logFileIdx);
+    sharedData.mutate_loop_count(loopCount);
 
-    // ctx.radio.sendMessage(builder.GetBufferPointer(), builder.GetSize());
+    auto packetInner = hprc::CreateRocket30KTelemetryPacket(builder, &sharedData, stateToTelemState(ctx.currentState), sensorBuilder.Finish());
+    auto packet = hprc::CreatePacket(builder, hprc::PacketUnion_Rocket30KTelemetryPacket, packetInner.Union());
+
+    builder.Finish(packet);
+    ctx.radio.sendMessage(builder.GetBufferPointer(), builder.GetSize());
+    loopCount++;
   }
 }
 
@@ -235,7 +245,16 @@ void sensorLoop() {
   }
   */
 
-  // manager is not being used here to get data
+  // static uint32_t lastBaroReadTime = 0;
+
+  // const auto &baro_desc = ctx.baro.get_descriptor();
+  // if (baro_desc.getLastUpdated() > lastBaroReadTime) {
+  //   lastBaroReadTime = baro_desc.getLastUpdated();
+  //   Log.infoln("LPS22 - Pressure: %F hPa, Temp: %F C",
+  //              baro_desc.data.pressure, baro_desc.data.temp);
+  // }
+  
+
   if (millis() - last_print > 200) {
     digitalWrite(LED_BLUE, !digitalRead(LED_BLUE));
     last_print = millis();
@@ -243,7 +262,6 @@ void sensorLoop() {
 
     Log.infoln("=== Loop %d ===", loop_count);
 
-    // DIRECT ACCESS to sensor data - this is guaranteed to work
     const auto &asm330_desc = ctx.asm330.get_descriptor();
     const auto &lsm6_desc = ctx.lsm.get_descriptor();
     const auto &baro_desc = ctx.baro.get_descriptor();
@@ -307,7 +325,7 @@ void setup() {
   pinMode(ADC_INP4, INPUT);
   digitalWrite(MOSFET_GATE, HIGH);
 
-  currentState = PRELAUNCH;
+  ctx.currentState = PRELAUNCH;
   data = {};
 
   initStateMap();
@@ -343,7 +361,7 @@ void setup() {
 
   // NOTE: Run initialization on the first state
   initStateData(&data);
-  (*initFuncs[currentState])(&data);
+  (*initFuncs[ctx.currentState])(&data);
 
   // ctx.estimator = SplitStateEstimator();
 
@@ -367,8 +385,8 @@ void ekfLoop(Context *ctx) {
   const auto &mag_desc = ctx->mag.get_descriptor();
   const auto &gps_desc = ctx->gps.get_descriptor();
 
-  bool inAir = currentState == BOOST || currentState == COAST ||
-               currentState == DROGUE_DESCENT || currentState == MAIN_DESCENT;
+  bool inAir = ctx->currentState == BOOST || ctx->currentState == COAST ||
+               ctx->currentState == DROGUE_DESCENT || ctx->currentState == MAIN_DESCENT;
 
   // Accel and gyro becuase they are on the same sensor
   if (asm330_desc.getLastUpdated() > last_accel_time) {
@@ -430,26 +448,18 @@ void ekfLoop(Context *ctx) {
 void loop() {
 
   updateStateData(&data);
-  StateID newState = (*loopFuncs[currentState])(&data, &ctx);
+  StateID newState = (*loopFuncs[ctx.currentState])(&data, &ctx);
 
-  if (currentState != newState) {
+  if (ctx.currentState != newState) {
     initStateData(&data);
     (*initFuncs[newState])(&data);
-    currentState = newState;
+    ctx.currentState = newState;
     ctx.debugLogFile.printf("to: %d @ %d\n", newState, millis());
   }
 
   sensorLoop();
 
   // radioLoop();
-
-  // static uint32_t lastCurrentLogTime = 0;
-  // if (millis() - lastCurrentLogTime >= 200) {
-  //   lastCurrentLogTime = millis();
-  //   uint32_t val = analogRead(MOSFET_CURRENT);
-  //   Log.infoln("Current: %d (raw: %d)", ((val * 330 * 1000) / 1023) / 10,
-  //   val); Log.infoln("thing: %d", digitalRead(ADC_INP4));
-  // }
 
   if (false && ctx.ekfLooping) {
     ekfLoop(&ctx);

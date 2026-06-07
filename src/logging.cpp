@@ -9,29 +9,44 @@ bool initializeLogging(Context *ctx) {
   Serial.print("Initailizing SD... ");
 
   if (SD.begin()) {
-    // TODO: Define these values
     int fileIdx = 0;
-    char filename[100];
-    char debugFilename[100];
-    char fixedRateLogFilename[100];
+    char filename[256];
+    char debugFilename[256];
+    char ekfLogFilename[256];
 
     SD.mkdir(LOG_FOLDER_NAME);
-    while (fileIdx < 100) {
-      sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
-      sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
-      sprintf(fixedRateLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
-      fileIdx++;
 
-      Serial.printf("Trying file `%s`\n", filename);
-      if (!SD.exists(filename)) {
-        ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-        ctx->debugLogFile =
-            SD.open(debugFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-        ctx->fixedRateLogFile = SD.open(fixedRateLogFilename,
-                                        FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-        break;
+    {
+      File prev_log_idx_file;
+      char idx_string[16];
+      if (SD.exists(LOG_FOLDER_NAME "/.prev_log_idx")) {
+        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_WRITE | FA_READ);
+        fileIdx = prev_log_idx_file.parseInt() + 1;
+        if (fileIdx > 100) {
+          fileIdx = 0;
+        }
+      } else {
+        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_CREATE_ALWAYS | FA_WRITE);
       }
+      prev_log_idx_file.seek(0);
+      itoa(fileIdx, idx_string, 10);
+      idx_string[3] = 0;
+      prev_log_idx_file.write(idx_string, 4);
+      prev_log_idx_file.close();
     }
+    
+    sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
+    sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
+    sprintf(ekfLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
+
+    Serial.printf("Main log file `%s`\n", filename);
+    ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+    ctx->debugLogFile =
+        SD.open(debugFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+    ctx->ekfLogFile = SD.open(ekfLogFilename,
+                                      FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+
+    ctx->logFileIdx = fileIdx;
     return true;
   } else {
     // NOTE: SD initialization failed
@@ -49,7 +64,7 @@ void loggingLoop(Context *ctx) {
     lastTimeFlushedFiles = millis();
     ctx->debugLogFile.flush();
     ctx->logFile.flush();
-    ctx->fixedRateLogFile.flush();
+    ctx->ekfLogFile.flush();
   }
 
   if (millis() - lastTimeLoggedEKF >= 50) {

@@ -1,3 +1,4 @@
+#include "debouncer.h"
 #define TEMPLATE_STATES_OVERRIDE
 #include "../State.h"
 #include "Arduino.h"
@@ -8,13 +9,7 @@
 void prelaunchInit(StateData *data) {}
 
 StateID prelaunchLoop(StateData *data, Context *ctx) {
-  // Serial.println("looping prelaunch");
-
-  static bool BlueLedState = false;
-  static bool GreenLedState = false;
-  static uint32_t lastBlueToggleTime = 0;
-  static uint32_t lastGreenToggleTime = 0;
-
+  static Debouncer accelDebouncer(20);
   //static bool ComuteInitialOrientationThisLoop = false;
 
   const auto &accel_desc = ctx->asm330.get_descriptor();
@@ -61,26 +56,9 @@ StateID prelaunchLoop(StateData *data, Context *ctx) {
 
   const auto acc_vec = ctx->estimator.get_accel_prev();
   // check acceleration in vertical direction is greater than threshold
-  if (data->accelDebouncer.update(abs(acc_vec(0, 0)) > LAUNCH_TRHESHOLD, millis())) {
+  if (accelDebouncer.update(abs(acc_vec(0, 0)) > LAUNCH_TRHESHOLD, millis())) {
     return BOOST;
   }
-
-  // if (ctx->sdInitialized && ctx->logFile != NULL) {
-  //   // blink
-  //   if ((millis() - lastBlueToggleTime) > 250) {
-  //     lastBlueToggleTime = millis();
-  //     BlueLedState = !BlueLedState;
-  //     digitalWrite(LED_BLUE, BlueLedState);
-  //   }
-  // }
-
-  // if (gps_desc.data.gpsLockType == 3) {
-    // if ((millis() - lastGreenToggleTime) > 250) {
-    //   lastGreenToggleTime = millis();
-    //   GreenLedState = !GreenLedState;
-    //   digitalWrite(LED_GREEN, GreenLedState);
-    // }
-  // }
 
   return PRELAUNCH;
 }

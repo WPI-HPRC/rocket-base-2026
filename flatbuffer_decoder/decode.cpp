@@ -63,32 +63,32 @@ int main(int argc, char **argv) {
     head += nextPacketSize;
     const Sensors *sensors = packet->sensors();
 
-    if (sensors->ASM330() != nullptr) {
+    if (sensors->asm330() != nullptr) {
       fprintf(asm330, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
-              sensors->ASM330()->accel0(), sensors->ASM330()->accel1(),
-              sensors->ASM330()->accel2(), sensors->ASM330()->gyr0(),
-              sensors->ASM330()->gyr1(), sensors->ASM330()->gyr2());
+              sensors->asm330()->accel0(), sensors->asm330()->accel1(),
+              sensors->asm330()->accel2(), sensors->asm330()->gyr0(),
+              sensors->asm330()->gyr1(), sensors->asm330()->gyr2());
     }
-    if (sensors->LSM6() != nullptr) {
+    if (sensors->lsm6() != nullptr) {
       fprintf(lsm6, "%d,%.8f,%.8f,%.8f,%.8f,%.8f,%.8f\n", packet->timestamp(),
-              sensors->LSM6()->accel0(), sensors->LSM6()->accel1(),
-              sensors->LSM6()->accel2(), sensors->LSM6()->gyr0(),
-              sensors->LSM6()->gyr1(), sensors->LSM6()->gyr2());
+              sensors->lsm6()->accel0(), sensors->lsm6()->accel1(),
+              sensors->lsm6()->accel2(), sensors->lsm6()->gyr0(),
+              sensors->lsm6()->gyr1(), sensors->lsm6()->gyr2());
     }
-    if (sensors->LIS2MDL() != nullptr) {
+    if (sensors->lis2mdl() != nullptr) {
       fprintf(lis2mdl, "%d,%.8f,%.8f,%.8f\n", packet->timestamp(),
-              sensors->LIS2MDL()->mag0(), sensors->LIS2MDL()->mag1(),
-              sensors->LIS2MDL()->mag2());
+              sensors->lis2mdl()->mag0(), sensors->lis2mdl()->mag1(),
+              sensors->lis2mdl()->mag2());
     }
-    if (sensors->LPS22() != nullptr) {
+    if (sensors->lps22() != nullptr) {
       fprintf(lps22, "%d,%.8f,%.8f\n", packet->timestamp(),
-              sensors->LPS22()->pressure(), sensors->LPS22()->temp());
+              sensors->lps22()->pressure(), sensors->lps22()->temp());
     }
-    if (sensors->LIV3F() != nullptr) {
+    if (sensors->liv3f() != nullptr) {
       fprintf(liv3f, "%d,%.8f,%.8f,%.8f,%hhd,%d\n", packet->timestamp(),
-              sensors->LIV3F()->lat(), sensors->LIV3F()->lon(),
-              sensors->LIV3F()->alt(), sensors->LIV3F()->satellites(),
-              sensors->LIV3F()->epochTime());
+              sensors->liv3f()->lat(), sensors->liv3f()->lon(),
+              sensors->liv3f()->alt(), sensors->liv3f()->satellites(),
+              sensors->liv3f()->epoch_time());
     }
   }
 
