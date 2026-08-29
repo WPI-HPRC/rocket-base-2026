@@ -15,10 +15,22 @@ int main(int argc, char **argv) {
     return UNITY_END();
 }
 
+// State Machine
+
+void test_state_sanity() {
+    TEST_ASSERT_TRUE(true);
+}
+
 void test_state_machine() {
-    
+    RUN_TEST(test_state_sanity);
+}
+
+// Logging
+
+void test_logging_sanity() {
+    TEST_ASSERT_TRUE(true);
 }
 
 void test_logging() {
-
+    RUN_TEST(test_logging_sanity);
 }
