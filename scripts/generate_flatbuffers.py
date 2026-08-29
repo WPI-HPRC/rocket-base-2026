@@ -3,10 +3,22 @@ import os
 import io
 import stat
 import platform
+import ssl
 import subprocess
 import urllib.request
 import zipfile
 from pathlib import Path
+
+
+# flatbuffers download requires SSL which isn't included with some PlatformIO python builds
+def _make_ssl_context():
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -89,7 +101,7 @@ def download_flatc():
     print(f"              {url}")
 
     try:
-        with urllib.request.urlopen(url) as response:
+        with urllib.request.urlopen(url, context=_make_ssl_context()) as response:
             zip_bytes = io.BytesIO(response.read())
     except Exception as e:
         print(f"[flatbuffers] Download failed: {e}")
