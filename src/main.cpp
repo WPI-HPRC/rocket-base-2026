@@ -324,11 +324,13 @@ void setup() {
   Serial.begin(115200);
   // radioInit();
 
-  while (!Serial) {
-    delay(10);
-  }
+  #ifdef DEBUG
+    while (!Serial) {
+      delay(10);
+    }
 
-  delay(200);
+    delay(200);
+  #endif
 
   ctx.ekfLooping = false;
   ctx.sdInitialized = initializeLogging(&ctx);
