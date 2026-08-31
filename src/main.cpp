@@ -325,8 +325,9 @@ void setup() {
   // radioInit();
 
   #ifdef DEBUG
-    while (!Serial) {
+    for (int time = 0; time < 1000*60*5; time += 10) {
       delay(10);
+      if (Serial) break;
     }
 
     delay(200);
