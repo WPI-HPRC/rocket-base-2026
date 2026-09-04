@@ -326,7 +326,8 @@ void setup() {
 
   #ifdef DEBUG
     // this 1 minute delay is 2 minutes for some reason?
-    for (int time = 0; time < 1000*60*1; time += 10) {
+    const int ONE_MINUTE_MS = 1000*60*1
+    for (int time = 0; time < ONE_MINUTE_MS; time += 10) {
       delay(10);
       if (Serial) break;
     }
