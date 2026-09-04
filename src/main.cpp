@@ -325,7 +325,8 @@ void setup() {
   // radioInit();
 
   #ifdef DEBUG
-    for (int time = 0; time < 1000*60*5; time += 10) {
+    // this 1 minute delay is 2 minutes for some reason?
+    for (int time = 0; time < 1000*60*1; time += 10) {
       delay(10);
       if (Serial) break;
     }
