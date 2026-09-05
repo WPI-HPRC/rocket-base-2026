@@ -23,11 +23,12 @@ def _make_ssl_context():
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 FLATC_VERSION = "25.12.19"
-SCHEMA_DIR    = Path(env.subst("$PROJECT_DIR/telemetry-2026"))
-OUTPUT_DIR    = Path(env.subst("$PROJECT_DIR/lib/telemetry-generated"))
-TOOLS_DIR     = Path(env.subst("$PROJECT_DIR/tools"))
+SCHEMA_DIR = Path(env.subst("$PROJECT_DIR/telemetry-2026"))
+OUTPUT_DIR = Path(env.subst("$PROJECT_DIR/lib/telemetry-generated"))
+TOOLS_DIR = Path(env.subst("$PROJECT_DIR/tools"))
 
 # ─── Platform → release asset mapping ────────────────────────────────────────
+
 
 def get_flatc_asset():
     """Return (archive_filename, binary_name_in_zip, local_binary_name)."""
@@ -38,7 +39,7 @@ def get_flatc_asset():
         # flatbuffers releases only ship x86-64 Linux binaries officially;
         # ARM (Raspberry Pi, etc.) must build from source or use apt.
         if "aarch64" in machine or "arm64" in machine:
-            return None, None, "flatc"   # signal to fall back to apt/source
+            return None, None, "flatc"  # signal to fall back to apt/source
         return (
             "Linux.flatc.binary.g++-13.zip",
             "flatc",
@@ -61,7 +62,9 @@ def get_flatc_asset():
         print(f"[flatbuffers] Unsupported OS: {system}")
         env.Exit(1)
 
+
 # ─── Download + cache ─────────────────────────────────────────────────────────
+
 
 def download_flatc():
     """Download flatc for the current platform if not already cached."""
@@ -82,6 +85,7 @@ def download_flatc():
     # ARM Linux: no official binary, try system package
     if archive_name is None:
         import shutil
+
         flatc = shutil.which("flatc")
         if flatc:
             print(f"[flatbuffers] ARM Linux detected, using system flatc: {flatc}")
@@ -97,7 +101,9 @@ def download_flatc():
         f"v{FLATC_VERSION}/{archive_name}"
     )
 
-    print(f"[flatbuffers] Downloading flatc v{FLATC_VERSION} for {platform.system()}...")
+    print(
+        f"[flatbuffers] Downloading flatc v{FLATC_VERSION} for {platform.system()}..."
+    )
     print(f"              {url}")
 
     try:
@@ -118,7 +124,9 @@ def download_flatc():
 
     # Mark executable on Unix
     if platform.system() != "Windows":
-        local_binary.chmod(local_binary.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        local_binary.chmod(
+            local_binary.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH
+        )
 
     # Write version stamp so we only re-download on version bump
     version_stamp.write_text(FLATC_VERSION)
@@ -126,16 +134,20 @@ def download_flatc():
     print(f"[flatbuffers] flatc saved to {local_binary}")
     return str(local_binary)
 
-# ─── Staleness check ──────────────────────────────────────────────────────────
 
-def is_stale(schema_path: Path, output_dir: Path) -> bool:
-    stem = schema_path.stem
-    header = output_dir / f"{stem}_generated.h"
-    if not header.exists():
-        return True
-    return schema_path.stat().st_mtime > header.stat().st_mtime
+# ─── Staleness check ──────────────────────────────────────────────────────────
+# something was up with stale schemas
+def is_stale(fbs_files: list, output_dir: Path) -> bool:
+    newest_schema = max(f.stat().st_mtime for f in fbs_files)
+    for fbs in fbs_files:
+        header = output_dir / f"{fbs.stem}_generated.h"
+        if not header.exists() or header.stat().st_mtime < newest_schema:
+            return True
+    return False
+
 
 # ─── Code generation ──────────────────────────────────────────────────────────
+
 
 def generate_flatbuffers():
     flatc = download_flatc()
@@ -146,18 +158,21 @@ def generate_flatbuffers():
         print(f"[flatbuffers] No .fbs files found in {SCHEMA_DIR}")
         return
 
-    stale = [f for f in fbs_files if is_stale(f, OUTPUT_DIR)]
-    if not stale:
+    if not is_stale(fbs_files, OUTPUT_DIR):
         print("[flatbuffers] All generated headers are up to date.")
         return
 
-    print(f"[flatbuffers] Generating {len(stale)} schema(s) → {OUTPUT_DIR}")
-    for fbs in stale:
+    print(f"[flatbuffers] Generating {len(fbs_files)} schema(s) → {OUTPUT_DIR}")
+    for fbs in fbs_files:
         cmd = [
             flatc,
-            "--cpp", "--gen-mutable", "--reflect-names",
-            "--cpp-std", "c++11",
-            "-o", str(OUTPUT_DIR),
+            "--cpp",
+            "--gen-mutable",
+            "--reflect-names",
+            "--cpp-std",
+            "c++11",
+            "-o",
+            str(OUTPUT_DIR),
             str(fbs),
         ]
         print(f"  flatc: {fbs.name}")
@@ -167,6 +182,7 @@ def generate_flatbuffers():
             env.Exit(1)
 
     print("[flatbuffers] Code generation complete.")
+
 
 # ─── Run immediately at script load time ──────────────────────────────────────
 # This is the critical difference: generation happens while SCons is still

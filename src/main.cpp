@@ -1,5 +1,5 @@
 #include "Context.h"
-#include "variant_MARSV21.h"
+//#include "variant_MARSV21.h"
 #include <Arduino.h>
 
 #include <HardwareSerial.h>
@@ -8,8 +8,6 @@
 
 #include "Packet_generated.h"
 
-#include "boilerplate/Sensors/Impl/ASM330.h"
-#include "boilerplate/Sensors/Impl/LIV3F.h"
 #include "boilerplate/Sensors/SensorManager/SensorManager.h"
 
 #include "logging.h"
