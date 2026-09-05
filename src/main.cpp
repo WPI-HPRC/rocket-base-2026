@@ -1,5 +1,4 @@
 #include "Context.h"
-#include "variant_MARSV21.h"
 #include <Arduino.h>
 
 #include <HardwareSerial.h>
@@ -324,11 +323,21 @@ void setup() {
   Serial.begin(115200);
   // radioInit();
 
-  while (!Serial) {
-    delay(10);
-  }
+  #ifdef DEBUG
+    // check that delays are right
+    const int ONE_MINUTE_MS = 1000*60*1;
+    const uint32_t start = millis();
 
-  delay(200);
+    // if no serial, wait
+    // if no serial after set wait fall through and exec
+    while (!Serial && (millis() - start) < ONE_MINUTE_MS) {
+      delay(10);
+      // Serial has a hidden 10ms delay inside, might cause issues?
+      // i think this time check tho should be ok
+    }
+
+    delay(200);
+  #endif
 
   ctx.ekfLooping = false;
   ctx.sdInitialized = initializeLogging(&ctx);
