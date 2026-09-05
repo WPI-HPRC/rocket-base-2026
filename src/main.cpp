@@ -324,11 +324,16 @@ void setup() {
   // radioInit();
 
   #ifdef DEBUG
-    // this 1 minute delay is 2 minutes for some reason?
+    // check that delays are right
     const int ONE_MINUTE_MS = 1000*60*1;
-    for (int time = 0; time < ONE_MINUTE_MS; time += 10) {
+    const uint32_t start = millis();
+
+    // if no serial, wait
+    // if no serial after set wait fall through and exec
+    while (!Serial && (millis() - start) < ONE_MINUTE_MS) {
       delay(10);
-      if (Serial) break;
+      // Serial has a hidden 10ms delay inside, might cause issues?
+      // i think this time check tho should be ok
     }
 
     delay(200);
