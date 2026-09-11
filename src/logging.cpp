@@ -191,10 +191,10 @@ void loggingLoop(Context *ctx) {
     lastGpsDataAt = gps_desc.getLastUpdated();
     earliestTimestamp = std::min(earliestTimestamp, lastGpsDataAt);
 
-    hprc::LIV3FData gpsData(gps_desc.data.lat, gps_desc.data.lon,
-                            gps_desc.data.alt, gps_desc.data.satellites,
+    hprc::MAX10SData gpsData(gps_desc.data.lat, gps_desc.data.lon,
+                            gps_desc.data.altMSL, gps_desc.data.satellites,
                             gps_desc.data.epochTime);
-    sensorBuilder.add_liv3f(&gpsData);
+    sensorBuilder.add_max10s(&gpsData);
 
     hasData = true;
   }
