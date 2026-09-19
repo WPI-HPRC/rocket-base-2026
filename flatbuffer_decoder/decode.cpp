@@ -1,6 +1,8 @@
 #include "SdData_generated.h"
 #include "Sensors_generated.h"
 #include "flatbuffers/flatbuffers.h"
+#include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>
@@ -36,31 +38,68 @@ int main(int argc, char **argv) {
   FILE *liv3f = fopen("decoded/liv3f.csv", "w");
   fprintf(liv3f, "timestamp,lat,lon,alt,satellites,epochTime\n");
 
-  char buff[1024];
+  // The log can start mid-packet and lose bytes (e.g. when captured over a
+  // serial link), so every packet is verified before it is decoded and the
+  // decoder rescans byte by byte for the next valid one after any damage.
+  constexpr size_t MAX_PACKET_SIZE = 1024;
+  alignas(8) uint8_t packetBuf[MAX_PACKET_SIZE + sizeof(uoffset_t)];
 
-  char *head = buff;
-  size_t endIdx = fread(head, 1, 1024, data);
+  size_t packetCount = 0;
+  size_t skippedBytes = 0;
+  size_t skippedRegions = 0;
+  bool skipping = false;
+
+  uint8_t buff[4096];
+  size_t endIdx = fread(buff, 1, sizeof(buff), data);
+  size_t head = 0;
 
   while (true) {
-    uoffset_t remainingBytes = endIdx - (head - buff);
+    size_t remainingBytes = endIdx - head;
 
-    uoffset_t nextPacketSize = *(uoffset_t *)head + sizeof(uoffset_t);
-    if (nextPacketSize > remainingBytes) {
-      memmove(buff, head, remainingBytes);
-      size_t bytesNeeded = 1024 - remainingBytes;
-      endIdx =
-          remainingBytes + fread(buff + remainingBytes, 1, bytesNeeded, data);
-      if (endIdx == remainingBytes) {
-        break;
-      }
-
-      head = buff;
-
-      continue;
+    // Refill once fewer bytes remain than the largest possible packet
+    if (remainingBytes < MAX_PACKET_SIZE + sizeof(uoffset_t) && !feof(data)) {
+      memmove(buff, buff + head, remainingBytes);
+      endIdx = remainingBytes +
+               fread(buff + remainingBytes, 1, sizeof(buff) - remainingBytes,
+                     data);
+      head = 0;
+      remainingBytes = endIdx;
     }
 
-    const SDPacket *packet = GetSizePrefixedSDPacket(head);
-    head += nextPacketSize;
+    if (remainingBytes < sizeof(uoffset_t)) {
+      skippedBytes += remainingBytes;
+      break;
+    }
+
+    // Packets aren't guaranteed to be 4-byte aligned in the file
+    uoffset_t packetSize;
+    memcpy(&packetSize, buff + head, sizeof(packetSize));
+    size_t totalSize = (size_t)packetSize + sizeof(uoffset_t);
+
+    bool valid = false;
+    if (packetSize <= MAX_PACKET_SIZE && totalSize <= remainingBytes) {
+      // Verify on an aligned copy, flatbuffers checks alignment
+      memcpy(packetBuf, buff + head, totalSize);
+      Verifier verifier(packetBuf, totalSize);
+      valid = VerifySizePrefixedSDPacketBuffer(verifier) &&
+              GetSizePrefixedSDPacket(packetBuf)->sensors() != nullptr;
+    }
+
+    if (!valid) {
+      if (!skipping) {
+        skippedRegions++;
+        skipping = true;
+      }
+      head++;
+      skippedBytes++;
+      continue;
+    }
+    skipping = false;
+
+    head += totalSize;
+    packetCount++;
+
+    const SDPacket *packet = GetSizePrefixedSDPacket(packetBuf);
     const Sensors *sensors = packet->sensors();
 
     if (sensors->asm330() != nullptr) {
@@ -92,5 +131,15 @@ int main(int argc, char **argv) {
     }
   }
 
-  exit(0);
+  printf("Decoded %zu packets, skipped %zu bytes in %zu corrupt region(s)\n",
+         packetCount, skippedBytes, skippedRegions);
+
+  fclose(asm330);
+  fclose(lsm6);
+  fclose(lis2mdl);
+  fclose(lps22);
+  fclose(liv3f);
+  fclose(data);
+
+  return 0;
 }
