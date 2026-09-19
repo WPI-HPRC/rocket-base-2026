@@ -4,7 +4,9 @@
 #include <HardwareSerial.h>
 #include <SPI.h>
 #include <Wire.h>
+#include "flash_log.h"
 
+FlashLog flashlog;
 
 #include "Packet_generated.h"
 
@@ -338,7 +340,29 @@ void setup() {
     }
 
     delay(200);
+
+    
   #endif
+
+  if (!flashlog.begin(false)) {
+    Serial.println("Flash log init/wipe failed");
+    // while (1) delay(1000);
+  }
+
+  uint8_t dataString[14] = {0x43, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21};
+  flashlog.append(dataString, 10);
+  Serial.println("Size used " + String(flashlog.bytesUsed()));
+  uint8_t buf[20];
+  uint32_t size;
+  flashlog.readAt(10, &size, buf, 20);
+  for(int i = 0; i< 20; i++){
+    Serial.printf("%x ",buf[i]);
+  }
+  // Serial.println(buf[0]);
+  Serial.println();        
+  
+  while(1){}
+
 
   ctx.ekfLooping = false;
   ctx.sdInitialized = initializeLogging(&ctx);
