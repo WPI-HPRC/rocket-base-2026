@@ -28,6 +28,8 @@
 
 #include "LoRaE22.h"
 
+#include "HardwareSerial.h"
+
 struct ASM330Data;
 struct LPS22Data;
 struct ICMData;
@@ -57,6 +59,8 @@ struct Context {
     LIV3F gps;
 
     LoRaE22 radio;
+
+    HardwareSerial *loggingSerial;
     
     SplitStateEstimator estimator;
 };

@@ -4,8 +4,10 @@
 #include "ff.h"
 #include "logging.h"
 #include <stdint.h>
+#include <HardwareSerial.h>
 
 bool initializeLogging(Context *ctx) {
+  ctx->loggingSerial->begin(115200, SERIAL_8N1);
   Serial.print("Initailizing SD... ");
 
   if (SD.begin()) {
@@ -206,8 +208,8 @@ void loggingLoop(Context *ctx) {
     builder.FinishSizePrefixed(packet);
 
     if (ctx->logFileBufferEnd + builder.GetSize() >= LOG_FILE_BUFFER_SIZE) {
-      ctx->logFile.write(ctx->logFileBuffer, ctx->logFileBufferEnd);
-      ctx->logFile.flush();
+      ctx->loggingSerial->write(ctx->logFileBuffer, ctx->logFileBufferEnd);
+      ctx->loggingSerial->flush();
       ctx->logFileBufferEnd = 0;
     }
     memcpy(ctx->logFileBuffer + ctx->logFileBufferEnd,
