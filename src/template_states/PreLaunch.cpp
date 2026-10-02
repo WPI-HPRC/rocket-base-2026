@@ -1,7 +1,7 @@
 #include "debouncer.h"
 #define TEMPLATE_STATES_OVERRIDE
 #include "../State.h"
-#include "Arduino.h"
+#include "boilerplate/HPRC_HAL.h"
 #include "StateMachineConstants.h"
 #include "config.h"
 #include "logging.h"

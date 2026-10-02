@@ -1,0 +1,17 @@
+# clangd can't use the PlatformIO compile_commands.json as-is: the recorded
+# driver is arm-none-eabi-g++, and clangd won't run it to learn the newlib /
+# libstdc++ system include paths, so every <stdlib.h>-style include fails.
+CompileFlags:
+  Compiler: clang++
+  Add:
+    - --target=arm-none-eabi
+    # Arduino.h #errors out unless it sees GCC >= 6.3; clang reports 4.2.
+    - -DGCC_VERSION=120301
+    - -D__GNUC__=12
+    - -isystem/Users/liambruhin/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1
+    - -isystem/Users/liambruhin/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/arm-none-eabi/thumb/v7e-m/nofp
+    - -isystem/Users/liambruhin/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/12.3.1/backward
+    - -isystem/Users/liambruhin/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include
+  Remove:
+    - --param
+    - max-inline-insns-single=*

@@ -1,9 +1,5 @@
 #include "Context.h"
-#include <Arduino.h>
-
-#include <HardwareSerial.h>
-#include <SPI.h>
-#include <Wire.h>
+#include "boilerplate/HPRC_HAL.h"
 
 #include "Packet_generated.h"
 
