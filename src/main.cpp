@@ -12,6 +12,7 @@
 #include "boilerplate/Sensors/SensorManager/SensorManager.h"
 
 #include "logging.h"
+#include "usb_dump.h"
 
 #include "LoRaE22.h"
 #include "RadioConfig.h"
@@ -222,6 +223,17 @@ void sensorLoop() {
 
   // Update all sensors through manager
   mgr.loop();
+
+#ifdef USB_SENSOR_DUMP
+  usbDumpLoop(&ctx);
+
+  // Skip the human readable prints below so they don't clutter the dump
+  if (millis() - last_print > 200) {
+    digitalWrite(LED_BLUE, !digitalRead(LED_BLUE));
+    last_print = millis();
+  }
+  return;
+#endif
 
   /*
   if (currentState >= PRELAUNCH) {
