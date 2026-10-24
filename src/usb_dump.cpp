@@ -1,7 +1,7 @@
 #include "usb_dump.h"
 
 #include <Arduino.h>
-
+#define USB_DUMP_HEADER_INTERVAL_MS 100
 #ifdef USB_SENSOR_DUMP
 
 static void usbDumpHeaders() {
