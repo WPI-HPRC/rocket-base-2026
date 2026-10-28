@@ -25,6 +25,7 @@
 #include "boilerplate/qmekf-lib/include/split_mekf.h"
 
 #include "config.h"
+#include "flash_log.h"
 
 #include "LoRaE22.h"
 
@@ -34,18 +35,12 @@ struct ICMData;
 struct MAX10SData;
 struct INA219Data;
 
-#define LOG_FILE_BUFFER_SIZE 16000
-
 struct Context {
-    File logFile;
-    File debugLogFile;
-    File ekfLogFile;
+    FlashTextLog debugLog;
 
-    uint8_t logFileIdx;
-    char logFileBuffer[LOG_FILE_BUFFER_SIZE];
-    size_t logFileBufferEnd = 0;
+    uint32_t logSessionId;
 
-    bool sdInitialized;
+    bool logInitialized;
     bool ekfLooping;
 
     StateID currentState;

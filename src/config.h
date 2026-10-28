@@ -22,3 +22,17 @@
 #endif
 
 #define LOG_FOLDER_NAME "flightData"
+
+// On-chip flash logging, see flash_log.h. 7 data sectors of 128 KB.
+// Sectors to keep free for the current session; older sessions that never
+// launched are erased oldest first to get there. 7 = always reclaim them.
+#define FLASH_LOG_MIN_FREE_SECTORS 7
+// Sectors a session keeps while on the pad, it erases its own oldest past this (2-6)
+#define FLASH_LOG_PRELAUNCH_SECTORS 2
+// RAM queue in front of the flash. Drained every loop, but sized to hold
+// incoming data through a 1-2 s sector erase.
+#define FLASH_LOG_BUFFER_SIZE 65536
+
+// If defined, erases every flash log session (including flights) at boot
+// XXX: This line must be commented out before launch!!
+// #define FLASH_LOG_FORMAT_ON_BOOT

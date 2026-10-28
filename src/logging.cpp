@@ -1,70 +1,45 @@
 #include "Context.h"
 #include "SdData_generated.h"
 #include "Sensors_generated.h"
-#include "ff.h"
 #include "logging.h"
 #include <stdint.h>
 
 bool initializeLogging(Context *ctx) {
-  Serial.print("Initailizing SD... ");
+#ifdef MOCK_SENSORS
+  // Mock sensors replay their data from the SD card
+  SD.begin();
+#endif
 
-  if (SD.begin()) {
-    int fileIdx = 0;
-    char filename[256];
-    char debugFilename[256];
-    char ekfLogFilename[256];
+#ifdef FLASH_LOG_FORMAT_ON_BOOT
+  bool format = true;
+#else
+  bool format = false;
+#endif
 
-    SD.mkdir(LOG_FOLDER_NAME);
+  Serial.print("Initializing flash log... ");
+  bool ok = flashLogBegin(format);
+  Serial.println(ok ? "done" : "FAILED");
+  flashLogPrintTable(Serial);
 
-    {
-      File prev_log_idx_file;
-      char idx_string[16];
-      if (SD.exists(LOG_FOLDER_NAME "/.prev_log_idx")) {
-        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_WRITE | FA_READ);
-        fileIdx = prev_log_idx_file.parseInt() + 1;
-        if (fileIdx > 100) {
-          fileIdx = 0;
-        }
-      } else {
-        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_CREATE_ALWAYS | FA_WRITE);
-      }
-      prev_log_idx_file.seek(0);
-      itoa(fileIdx, idx_string, 10);
-      idx_string[3] = 0;
-      prev_log_idx_file.write(idx_string, 4);
-      prev_log_idx_file.close();
-    }
-    
-    sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
-    sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
-    sprintf(ekfLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
-
-    Serial.printf("Main log file `%s`\n", filename);
-    ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-    ctx->debugLogFile =
-        SD.open(debugFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-    ctx->ekfLogFile = SD.open(ekfLogFilename,
-                                      FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-
-    ctx->logFileIdx = fileIdx;
-    return true;
-  } else {
-    // NOTE: SD initialization failed
-    // Do something about that probably
-    Serial.println("FAILED");
-    return false;
-  }
+  ctx->logSessionId = flashLogSessionId();
+  return ok;
 }
 
 void loggingLoop(Context *ctx) {
   static long lastTimeFlushedFiles = 0;
   static long lastTimeLoggedEKF = 0;
 
-  if (millis() - lastTimeFlushedFiles >= 2000) {
+  if (ctx->currentState != PRELAUNCH) {
+    flashLogProtectSession();
+  }
+  if (ctx->currentState == RECOVERY) {
+    flashLogMarkLanded();
+  }
+  flashLogLoop();
+
+  if (millis() - lastTimeFlushedFiles >= 250) {
     lastTimeFlushedFiles = millis();
-    ctx->debugLogFile.flush();
-    ctx->logFile.flush();
-    ctx->ekfLogFile.flush();
+    flashLogFlush();
   }
 
   if (millis() - lastTimeLoggedEKF >= 50) {
@@ -205,14 +180,7 @@ void loggingLoop(Context *ctx) {
 
     builder.FinishSizePrefixed(packet);
 
-    if (ctx->logFileBufferEnd + builder.GetSize() >= LOG_FILE_BUFFER_SIZE) {
-      ctx->logFile.write(ctx->logFileBuffer, ctx->logFileBufferEnd);
-      ctx->logFile.flush();
-      ctx->logFileBufferEnd = 0;
-    }
-    memcpy(ctx->logFileBuffer + ctx->logFileBufferEnd,
-           builder.GetBufferPointer(), builder.GetSize());
-    ctx->logFileBufferEnd += builder.GetSize();
+    flashLogWrite(FLASH_LOG_STREAM_DATA, builder.GetBufferPointer(), builder.GetSize());
 
     builder.Clear();
   }

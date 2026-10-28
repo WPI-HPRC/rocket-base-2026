@@ -194,7 +194,7 @@ void radioLoop() {
     hprc::Shared sharedData;
     sharedData.mutate_time_from_boot(millis());
     sharedData.mutate_last_command_received(lastCmdNum);
-    sharedData.mutate_sd_file_no(ctx.logFileIdx);
+    sharedData.mutate_sd_file_no(ctx.logSessionId);
     sharedData.mutate_loop_count(loopCount);
 
     auto packetInner = hprc::CreateRocket30KTelemetryPacket(builder, &sharedData, stateToTelemState(ctx.currentState), sensorBuilder.Finish());
@@ -340,10 +340,10 @@ void setup() {
   #endif
 
   ctx.ekfLooping = false;
-  ctx.sdInitialized = initializeLogging(&ctx);
+  ctx.logInitialized = initializeLogging(&ctx);
 
 #if DEBUG_MODE == 0
-  Log.begin(LOG_LEVEL_INFO, &ctx.debugLogFile);
+  Log.begin(LOG_LEVEL_INFO, &ctx.debugLog);
 #elif DEBUG_MODE == 1
   Log.begin(LOG_LEVEL_INFO, &Serial);
 #else
@@ -452,7 +452,7 @@ void loop() {
     }
     stateLocalData = (*initFuncs[newState])(&data);
     ctx.currentState = newState;
-    ctx.debugLogFile.printf("to: %d @ %d\n", newState, millis());
+    ctx.debugLog.printf("to: %d @ %d\n", newState, millis());
   }
 
   sensorLoop();
