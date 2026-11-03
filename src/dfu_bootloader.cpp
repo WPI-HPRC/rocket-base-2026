@@ -7,7 +7,9 @@
 //   3. On the next boot, before the Arduino core initializes anything, the
 //      magic word is detected and we jump to the ST system bootloader in ROM,
 //      which enumerates as a USB DFU device (0483:df11).
-//   4. dfu-util flashes the new firmware and resets back into the app.
+//   4. dfu-util flashes the new firmware and sends :leave. The ROM jumps into
+//      the app without a reset, so the app sees RESET_AFTER_DFU_MAGIC and
+//      resets itself once to start from a clean state.
 //
 // The host side of this lives in scripts/dfu_touch.py.
 
@@ -24,6 +26,11 @@ static constexpr uint32_t SYSTEM_BOOTLOADER_ADDR = 0x1FF09800UL;
 static volatile uint32_t *const BOOT_MAGIC_ADDR =
     reinterpret_cast<volatile uint32_t *>(0x3800FFFCUL);
 static constexpr uint32_t BOOT_MAGIC = 0xDF11B007UL;
+// Left behind while the ROM bootloader runs. On dfu-util's :leave the ROM
+// jumps straight to the app without a reset, so USB, NVIC and SysTick are
+// still in whatever state the ROM left them and the app can hang before USB
+// enumerates. Seeing this marker at startup means "do a real reset first".
+static constexpr uint32_t RESET_AFTER_DFU_MAGIC = 0xDF11AE5EUL;
 
 static constexpr uint32_t TOUCH_BAUD = 1200;
 
@@ -60,12 +67,47 @@ extern USBD_CDC_LineCodingTypeDef linecoding;
 
 // Runs before the core's premain() (priority 101), so the clocks, caches,
 // HAL and USB are still in their reset state when we hand over to ROM.
+// TEMP boot trace for debugging the DFU leave hang. Survives resets, not power cycles.
+static volatile uint32_t *const TRACE = reinterpret_cast<volatile uint32_t *>(0x3800FF00UL);
+static constexpr uint32_t TRACE_SIG = 0x7ACE7ACEUL;
+static constexpr uint32_t TRACE_MAX = 30;
+
+static void traceBoot(uint32_t magic) {
+  if (TRACE[0] != TRACE_SIG || TRACE[1] > 100000) {
+    TRACE[0] = TRACE_SIG;
+    TRACE[1] = 0;
+  }
+  const uint32_t n = TRACE[1];
+  const uint32_t i = n % TRACE_MAX;
+  TRACE[2 + 2 * i] = RCC->RSR;
+  TRACE[3 + 2 * i] = magic;
+  TRACE[1] = n + 1;
+  RCC->RSR |= RCC_RSR_RMVF;
+}
+
+void printBootTrace(Print &out) {
+  const uint32_t n = TRACE[1];
+  out.printf("BOOTTRACE count=%lu\n", n);
+  const uint32_t first = n > TRACE_MAX ? n - TRACE_MAX : 0;
+  for (uint32_t k = first; k < n; k++) {
+    const uint32_t i = k % TRACE_MAX;
+    out.printf("BOOTTRACE %lu rsr=%08lx magic=%08lx\n", k, TRACE[2 + 2 * i], TRACE[3 + 2 * i]);
+  }
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wprio-ctor-dtor"
 __attribute__((constructor(100))) static void checkBootloaderRequest() {
-  if (*BOOT_MAGIC_ADDR == BOOT_MAGIC) {
-    *BOOT_MAGIC_ADDR = 0;
+  const uint32_t magic = *BOOT_MAGIC_ADDR;
+  traceBoot(magic);
+  if (magic == BOOT_MAGIC) {
+    *BOOT_MAGIC_ADDR = RESET_AFTER_DFU_MAGIC;
     jumpToSystemBootloader();
+  }
+  if (magic == RESET_AFTER_DFU_MAGIC) {
+    *BOOT_MAGIC_ADDR = 0;
+    __DSB();
+    NVIC_SystemReset();
   }
 }
 #pragma GCC diagnostic pop

@@ -245,6 +245,11 @@ void sensorLoop() {
     loop_count++;
 
     Log.infoln("=== Loop %d ===", loop_count);
+    Serial.println("upload test build " __DATE__ " " __TIME__);
+    if (loop_count % 25 == 0) {
+      extern void printBootTrace(Print &);
+      printBootTrace(Serial);
+    }
 
     const auto &asm330_desc = ctx.asm330.get_descriptor();
     const auto &lsm6_desc = ctx.lsm.get_descriptor();

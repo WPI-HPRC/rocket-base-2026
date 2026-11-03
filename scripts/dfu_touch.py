@@ -78,3 +78,8 @@ def _touch_1200(source, target, env):
 
 if env.subst("$UPLOAD_PROTOCOL") == "dfu":
     env.AddPreAction("upload", _touch_1200)
+    # The ROM bootloader drops off USB as soon as it gets the :leave request,
+    # so dfu-util's final get_status always fails (exit 74) after a good flash.
+    env.Replace(UPLOADCMD='"$PYTHONEXE" "%s" %s' % (
+        os.path.join(env.subst("$PROJECT_DIR"), "scripts", "dfu_upload.py"),
+        env["UPLOADCMD"]))
