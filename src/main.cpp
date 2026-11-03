@@ -246,6 +246,11 @@ void sensorLoop() {
     loop_count++;
 
     Log.infoln("=== Loop %d ===", loop_count);
+    Serial.println("upload test build " __DATE__ " " __TIME__);
+    if (loop_count % 25 == 0) {
+      extern void printBootTrace(Print &);
+      printBootTrace(Serial);
+    }
 
     const auto &asm330_desc = ctx.asm330.get_descriptor();
     const auto &lsm6_desc = ctx.lsm.get_descriptor();
@@ -293,8 +298,12 @@ void sensorLoop() {
     }
 
     if (gps_desc.getLastUpdated() > 0) {
-      Log.infoln("MAX10S - Lat, Lon, Alt: %F, %F, %F | Satellites - %d",
-                 gps_desc.data.lat, gps_desc.data.lon, gps_desc.data.altMSL,
+      // ArduinoLog's %F only prints 2 decimals
+      char latStr[16], lonStr[16];
+      dtostrf(gps_desc.data.lat, 0, 7, latStr);
+      dtostrf(gps_desc.data.lon, 0, 7, lonStr);
+      Log.infoln("MAX10S - Lat, Lon, Alt: %s, %s, %F | Satellites - %d",
+                 latStr, lonStr, gps_desc.data.altMSL,
                  gps_desc.data.satellites);
       has_data = true;
     } else {
