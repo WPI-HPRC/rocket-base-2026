@@ -19,7 +19,7 @@
 
 #include "boilerplate/Sensors/Impl/ASM330.h"
 #include "boilerplate/Sensors/Impl/LIS2MDLTR.h"
-#include "boilerplate/Sensors/Impl/LIV3F.h"
+#include "boilerplate/Sensors/Impl/MAX10S.h"
 #include "boilerplate/Sensors/Impl/LPS22.h"
 #include "boilerplate/Sensors/Impl/LSM6.h"
 #include "boilerplate/qmekf-lib/include/split_mekf.h"
@@ -54,7 +54,7 @@ struct Context {
     LSM6 lsm;
     LPS22 baro;
     LIS2MDL mag;
-    LIV3F gps;
+    MAX10S gps;
 
     LoRaE22 radio;
     

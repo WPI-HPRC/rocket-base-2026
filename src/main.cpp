@@ -8,7 +8,7 @@
 #include "Packet_generated.h"
 
 #include "boilerplate/Sensors/Impl/ASM330.h"
-#include "boilerplate/Sensors/Impl/LIV3F.h"
+#include "boilerplate/Sensors/Impl/MAX10S.h"
 #include "boilerplate/Sensors/SensorManager/SensorManager.h"
 
 #include "logging.h"
@@ -28,7 +28,7 @@ Context ctx{
     .lsm = LSM6(&SENSORS_SPI, SENSORS_LSM_CS),
     .baro = LPS22(&SENSORS_SPI, SENSORS_LPS_CS),
     .mag = LIS2MDL(&SENSORS_SPI, SENSORS_LIS_CS),
-    .gps = LIV3F(GPS_SERIAL),
+    .gps = MAX10S(GPS_I2C),
     .radio = LoRaE22(&RADIO_SERIAL, RADIO_M0, RADIO_M1, RADIO_AUX, "KV0R"),
 };
 
@@ -185,10 +185,10 @@ void radioLoop() {
     if (gps_desc.getLastUpdated() > lastGpsDataAt) {
       lastGpsDataAt = gps_desc.getLastUpdated();
 
-      hprc::LIV3FData gpsData(gps_desc.data.lat, gps_desc.data.lon,
-                              gps_desc.data.alt, gps_desc.data.satellites,
+      hprc::MAX10SData gpsData(gps_desc.data.lat, gps_desc.data.lon,
+                              gps_desc.data.altMSL, gps_desc.data.satellites,
                               gps_desc.data.epochTime);
-      sensorBuilder.add_liv3f(&gpsData);
+      sensorBuilder.add_max10s(&gpsData);
     }
 
     hprc::Shared sharedData;
@@ -209,6 +209,7 @@ void radioLoop() {
 void sensorsSetup() {
   Log.infoln("Starting MARS board initialization...");
   SENSORS_SPI.begin();
+  GPS_I2C.begin();
 
   mgr.sensorInit();
 
@@ -245,6 +246,11 @@ void sensorLoop() {
     loop_count++;
 
     Log.infoln("=== Loop %d ===", loop_count);
+    Serial.println("upload test build " __DATE__ " " __TIME__);
+    if (loop_count % 25 == 0) {
+      extern void printBootTrace(Print &);
+      printBootTrace(Serial);
+    }
 
     const auto &asm330_desc = ctx.asm330.get_descriptor();
     const auto &lsm6_desc = ctx.lsm.get_descriptor();
@@ -292,12 +298,16 @@ void sensorLoop() {
     }
 
     if (gps_desc.getLastUpdated() > 0) {
-      Log.infoln("LIV3F - Lat, Lon, Alt: %F, %F, %F | Satellites - %d",
-                 gps_desc.data.lat, gps_desc.data.lon, gps_desc.data.alt,
+      // ArduinoLog's %F only prints 2 decimals
+      char latStr[16], lonStr[16];
+      dtostrf(gps_desc.data.lat, 0, 7, latStr);
+      dtostrf(gps_desc.data.lon, 0, 7, lonStr);
+      Log.infoln("MAX10S - Lat, Lon, Alt: %s, %s, %F | Satellites - %d",
+                 latStr, lonStr, gps_desc.data.altMSL,
                  gps_desc.data.satellites);
       has_data = true;
     } else {
-      Log.warningln("LIV3F: No data (timestamp = 0)");
+      Log.warningln("MAX10S: No data (timestamp = 0)");
     }
 
     Log.infoln("======================\n");
