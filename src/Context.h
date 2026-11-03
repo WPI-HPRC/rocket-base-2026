@@ -59,4 +59,6 @@ struct Context {
     LoRaE22 radio;
     
     SplitStateEstimator estimator;
+
+    float lastEstimatorUpdateTime;
 };
