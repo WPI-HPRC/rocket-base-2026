@@ -1,59 +1,80 @@
 #include "Context.h"
 #include "SdData_generated.h"
 #include "Sensors_generated.h"
-#include "ff.h"
 #include "logging.h"
 #include <stdint.h>
 
-bool initializeLogging(Context *ctx) {
-  Serial.print("Initailizing SD... ");
+#if SPI_DRIVER_SELECT != 2
+#error "Build with -DSPI_DRIVER_SELECT=2 to enable SdFat's soft SPI driver"
+#endif
 
-  if (SD.begin()) {
-    int fileIdx = 0;
-    char filename[256];
-    char debugFilename[256];
-    char ekfLogFilename[256];
+// The SD slot is wired for 4-bit SDMMC. In SPI mode DAT3 is CS, CMD is MOSI and
+// DAT0 is MISO. No hardware SPI peripheral maps to those pins, so the bus is
+// bit-banged.
+static SoftSpiDriver<PIN_SD_DAT0, PIN_SD_CMD, PIN_SD_SCK> sdSpi;
+static SdFs sd;
 
-    SD.mkdir(LOG_FOLDER_NAME);
+static constexpr char PREV_LOG_IDX_PATH[] = LOG_FOLDER_NAME "/.prev_log_idx";
+static constexpr int MAX_LOG_FILE_IDX = 100;
+static constexpr oflag_t CREATE_LOG_FLAGS = O_RDWR | O_CREAT | O_TRUNC;
 
-    {
-      File prev_log_idx_file;
-      char idx_string[16];
-      if (SD.exists(LOG_FOLDER_NAME "/.prev_log_idx")) {
-        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_WRITE | FA_READ);
-        fileIdx = prev_log_idx_file.parseInt() + 1;
-        if (fileIdx > 100) {
-          fileIdx = 0;
-        }
-      } else {
-        prev_log_idx_file = SD.open(LOG_FOLDER_NAME "/.prev_log_idx", FA_CREATE_ALWAYS | FA_WRITE);
-      }
-      prev_log_idx_file.seek(0);
-      itoa(fileIdx, idx_string, 10);
-      idx_string[3] = 0;
-      prev_log_idx_file.write(idx_string, 4);
-      prev_log_idx_file.close();
-    }
-    
-    sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
-    sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
-    sprintf(ekfLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
+// Reads the index used by the previous boot and stores the next one.
+static int nextLogFileIdx() {
+  FsFile idxFile;
+  if (!idxFile.open(PREV_LOG_IDX_PATH, O_RDWR | O_CREAT)) {
+    Serial.printf("Failed to open `%s`\n", PREV_LOG_IDX_PATH);
+    return 0;
+  }
 
-    Serial.printf("Main log file `%s`\n", filename);
-    ctx->logFile = SD.open(filename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-    ctx->debugLogFile =
-        SD.open(debugFilename, FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
-    ctx->ekfLogFile = SD.open(ekfLogFilename,
-                                      FA_CREATE_ALWAYS | FA_WRITE | FA_READ);
+  int fileIdx = idxFile.available() ? idxFile.parseInt() + 1 : 0;
+  if (fileIdx > MAX_LOG_FILE_IDX) {
+    fileIdx = 0;
+  }
 
-    ctx->logFileIdx = fileIdx;
+  idxFile.truncate(0);
+  idxFile.print(fileIdx);
+  idxFile.close();
+  return fileIdx;
+}
+
+static bool openLogFile(FsFile &file, const char *path) {
+  if (file.open(path, CREATE_LOG_FLAGS)) {
     return true;
-  } else {
-    // NOTE: SD initialization failed
-    // Do something about that probably
+  }
+  Serial.printf("Failed to open `%s`\n", path);
+  return false;
+}
+
+bool initializeLogging(Context *ctx) {
+  Serial.print("Initializing SD... ");
+
+  // Soft SPI runs at one fixed speed, so the clock argument is ignored.
+  if (!sd.begin(SdSpiConfig(PIN_SD_DAT3, DEDICATED_SPI, SD_SCK_MHZ(0), &sdSpi))) {
     Serial.println("FAILED");
+    sd.printSdError(&Serial);
     return false;
   }
+  Serial.println("OK");
+
+  if (!sd.exists(LOG_FOLDER_NAME)) {
+    sd.mkdir(LOG_FOLDER_NAME);
+  }
+
+  int fileIdx = nextLogFileIdx();
+  char filename[64];
+  char debugFilename[64];
+  char ekfLogFilename[64];
+  sprintf(filename, LOG_FOLDER_NAME "/flightData%d.fb.bin", fileIdx);
+  sprintf(debugFilename, LOG_FOLDER_NAME "/debugLog%d.txt", fileIdx);
+  sprintf(ekfLogFilename, LOG_FOLDER_NAME "/ekflog%d.bin", fileIdx);
+
+  Serial.printf("Main log file `%s`\n", filename);
+  bool opened = openLogFile(ctx->logFile, filename);
+  opened &= openLogFile(ctx->debugLogFile, debugFilename);
+  opened &= openLogFile(ctx->ekfLogFile, ekfLogFilename);
+
+  ctx->logFileIdx = fileIdx;
+  return opened;
 }
 
 void loggingLoop(Context *ctx) {

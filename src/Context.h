@@ -1,6 +1,6 @@
 #pragma once
 
-#include <STM32SD.h>
+#include <SdFat.h>
 #include <Servo.h>
 
 #ifdef __has_include
@@ -37,9 +37,9 @@ struct INA219Data;
 #define LOG_FILE_BUFFER_SIZE 16000
 
 struct Context {
-    File logFile;
-    File debugLogFile;
-    File ekfLogFile;
+    FsFile logFile;
+    FsFile debugLogFile;
+    FsFile ekfLogFile;
 
     uint8_t logFileIdx;
     char logFileBuffer[LOG_FILE_BUFFER_SIZE];
