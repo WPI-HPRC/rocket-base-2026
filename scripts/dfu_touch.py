@@ -13,6 +13,11 @@ import os
 import subprocess
 import time
 
+try:
+    from termios import error as TermiosError
+except ImportError:  # Windows
+    TermiosError = OSError
+
 STM_VID = 0x0483
 STM_CDC_PID = 0x5740
 DFU_ID = "0483:df11"
@@ -58,8 +63,9 @@ def _touch_1200(source, target, env):
         s = serial.Serial(port, 1200)
         s.dtr = False
         s.close()
-    except (serial.SerialException, OSError) as e:
-        # The board may drop off the bus mid-close; that's expected.
+    except (serial.SerialException, OSError, TermiosError) as e:
+        # The board can reboot as soon as the port opens at 1200 baud, so
+        # pyserial's flush or close hits a vanished device; that's expected.
         print("Touch: %s" % e)
 
     deadline = time.time() + DFU_WAIT_S
