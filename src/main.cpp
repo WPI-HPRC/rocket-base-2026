@@ -245,6 +245,7 @@ void sensorLoop() {
     last_print = millis();
     loop_count++;
 
+#ifdef DEBUG
     Log.infoln("=== Loop %d ===", loop_count);
     Serial.println("upload test build " __DATE__ " " __TIME__);
     if (loop_count % 25 == 0) {
@@ -311,6 +312,7 @@ void sensorLoop() {
     }
 
     Log.infoln("======================\n");
+#endif
   }
 }
 
@@ -352,13 +354,7 @@ void setup() {
   ctx.ekfLooping = false;
   ctx.sdInitialized = initializeLogging(&ctx);
 
-#if DEBUG_MODE == 0
-  Log.begin(LOG_LEVEL_INFO, &ctx.debugLogFile);
-#elif DEBUG_MODE == 1
   Log.begin(LOG_LEVEL_INFO, &Serial);
-#else
-  Log.begin(LOG_LEVEL_TRACE, &Serial);
-#endif
   Log.setPrefix([](Print *p, int level) { p->printf("[ %d ] ", millis()); });
 
   sensorsSetup();
